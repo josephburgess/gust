@@ -16,24 +16,31 @@ const (
 	weatherURL = baseURL + "data/2.5/weather?lat=%f&lon=%f&appid=%s"
 )
 
-func GetCoordinates(city, apiKey string) (*models.City, error) {
-	encodedCity := url.QueryEscape(city)
-	requestURL := fmt.Sprintf(geoCodeURL, encodedCity, apiKey)
-
-	resp, err := http.Get(requestURL)
+func fetchJSON(url string, target any) error {
+	resp, err := http.Get(url)
 	if err != nil {
-		return nil, err
+		return fmt.Errorf("HTTP request failed: %w", err)
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, err
+		return fmt.Errorf("reading response body: %w", err)
 	}
 
+	if err := json.Unmarshal(body, target); err != nil {
+		return fmt.Errorf("unmarshaling JSON: %w", err)
+	}
+
+	return nil
+}
+
+func GetCoordinates(city, apiKey string) (*models.City, error) {
+	encodedCity := url.QueryEscape(city)
+	requestURL := fmt.Sprintf(geoCodeURL, encodedCity, apiKey)
+
 	var cities []models.City
-	err = json.Unmarshal(body, &cities)
-	if err != nil {
+	if err := fetchJSON(requestURL, &cities); err != nil {
 		return nil, err
 	}
 
@@ -45,18 +52,7 @@ func GetCoordinates(city, apiKey string) (*models.City, error) {
 }
 
 func GetWeather(lat, lon float64, apiKey string) (*models.Weather, error) {
-	url := fmt.Sprintf(weatherURL, lat, lon, apiKey)
-
-	resp, err := http.Get(url)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
+	requestURL := fmt.Sprintf(weatherURL, lat, lon, apiKey)
 
 	var result struct {
 		Main struct {
@@ -67,9 +63,12 @@ func GetWeather(lat, lon float64, apiKey string) (*models.Weather, error) {
 		} `json:"weather"`
 	}
 
-	err = json.Unmarshal(body, &result)
-	if err != nil {
+	if err := fetchJSON(requestURL, &result); err != nil {
 		return nil, err
+	}
+
+	if len(result.Weather) == 0 {
+		return nil, fmt.Errorf("no weather data available")
 	}
 
 	weather := &models.Weather{
