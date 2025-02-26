@@ -1,4 +1,4 @@
-# **Gust - Weather CLI in Go**
+# **Gust - Weather cli in Go**
 
 Gust is a simple command-line weather tool I'm using to learn/play with Golang.
 
@@ -50,8 +50,7 @@ gust london
 ```
 
 ### **Example Output**
-
-![image](https://utfs.io/f/rTP6bTd9GhW2Ng55qxFLgRWY61cT0E4VDuptf3HX2GdmAUn7)
+![Screenshot 2025-02-26 at 00 10 45@2x](https://github.com/user-attachments/assets/90ce75c0-6cba-40fa-9aae-16cd53064f52)
 
 ## **Testing**
 
