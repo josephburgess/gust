@@ -64,7 +64,6 @@ func GetCoordinates(city, apiKey string) (*models.City, error) {
 	return &cities[0], nil
 }
 
-// GetCurrentWeather gets detailed current weather data
 func GetCurrentWeather(lat, lon float64, apiKey string) (*models.Weather, error) {
 	requestURL := fmt.Sprintf(weatherURL, lat, lon, apiKey)
 
