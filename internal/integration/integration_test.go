@@ -1,50 +1,58 @@
 package integration
 
 import (
-	"os"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/josephburgess/gust/internal/api"
 )
 
-func TestWeatherIntegration(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping integration test in short mode")
+// test the full flow of getting coordinates and weather
+func TestSimpleIntegration(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
+		switch r.URL.Path {
+		case "/geo/1.0/direct":
+			if _, err := w.Write([]byte(`[{"name":"London","lat":51.5074,"lon":-0.1278}]`)); err != nil {
+				t.Errorf("failed to write response: %v", err)
+			}
+		case "/data/2.5/weather":
+			w.Write([]byte(`{
+				"main": {"temp": 283.15},
+				"weather": [{"description": "cloudy"}]
+			}`))
+
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+
+	originalBaseURL := api.GetBaseURL()
+	api.SetBaseURL(server.URL + "/")
+	defer api.SetBaseURL(originalBaseURL)
+
+	city, err := api.GetCoordinates("London", "test-api-key")
+	if err != nil {
+		t.Fatalf("GetCoordinates failed: %v", err)
 	}
 
-	apiKey := os.Getenv("OPENWEATHER_API_KEY")
-	if apiKey == "" {
-		t.Skip("Skipping test: OPENWEATHER_API_KEY environment variable not set")
+	weather, err := api.GetWeather(city.Lat, city.Lon, "test-api-key")
+	if err != nil {
+		t.Fatalf("GetWeather failed: %v", err)
 	}
 
-	cities := []string{"London", "New York", "Tokyo"}
+	if city.Name != "London" {
+		t.Errorf("Expected city name 'London', got '%s'", city.Name)
+	}
 
-	for _, city := range cities {
-		t.Run(city, func(t *testing.T) {
-			cityData, err := api.GetCoordinates(city, apiKey)
-			if err != nil {
-				t.Fatalf("Failed to get coordinates for %s: %v", city, err)
-			}
+	if weather.Temp != 283.15 {
+		t.Errorf("Expected temperature 283.15, got %f", weather.Temp)
+	}
 
-			if cityData.Name == "" || cityData.Lat == 0 || cityData.Lon == 0 {
-				t.Errorf("Invalid city data returned: %+v", cityData)
-			}
-
-			weather, err := api.GetWeather(cityData.Lat, cityData.Lon, apiKey)
-			if err != nil {
-				t.Fatalf("Failed to get weather for %s: %v", city, err)
-			}
-
-			if weather.Temp == 0 {
-				t.Errorf("Temperature should not be 0 Kelvin")
-			}
-
-			if weather.Description == "" {
-				t.Errorf("Weather description should not be empty")
-			}
-
-			t.Logf("Weather for %s: %.1f°C, %s",
-				city, weather.Temp-273.15, weather.Description)
-		})
+	if weather.Description != "cloudy" {
+		t.Errorf("Expected description 'cloudy', got '%s'", weather.Description)
 	}
 }

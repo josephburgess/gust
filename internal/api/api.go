@@ -10,11 +10,21 @@ import (
 	"github.com/josephburgess/gust/internal/models"
 )
 
-const (
+var (
 	baseURL    = "https://api.openweathermap.org/"
 	geoCodeURL = baseURL + "geo/1.0/direct?q=%s&limit=1&appid=%s"
 	weatherURL = baseURL + "data/2.5/weather?lat=%f&lon=%f&appid=%s"
 )
+
+func GetBaseURL() string {
+	return baseURL
+}
+
+func SetBaseURL(url string) {
+	baseURL = url
+	geoCodeURL = baseURL + "geo/1.0/direct?q=%s&limit=1&appid=%s"
+	weatherURL = baseURL + "data/2.5/weather?lat=%f&lon=%f&appid=%s"
+}
 
 func fetchJSON(url string, target any) error {
 	resp, err := http.Get(url)

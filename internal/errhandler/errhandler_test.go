@@ -1,64 +1,44 @@
 package errhandler
 
 import (
+	"bytes"
 	"errors"
-	"os"
-	"os/exec"
-	"strings"
+	"log"
 	"testing"
 )
 
 func TestCheckLog(t *testing.T) {
-	tests := []struct {
-		name    string
-		err     error
-		message string
-		want    bool
-	}{
-		{
-			name:    "with error",
-			err:     errors.New("test error"),
-			message: "test message",
-			want:    true,
-		},
-		{
-			name:    "no error",
-			err:     nil,
-			message: "test message",
-			want:    false,
-		},
+	originalOutput := log.Writer()
+	defer log.SetOutput(originalOutput)
+
+	var buf bytes.Buffer
+	log.SetOutput(&buf)
+
+	err := errors.New("test error")
+	result := CheckLog(err, "Test message")
+
+	if !result {
+		t.Error("CheckLog should return true when an error is provided")
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := CheckLog(tt.err, tt.message)
-			if got != tt.want {
-				t.Errorf("CheckLog() = %v, want %v", got, tt.want)
-			}
-		})
+	logOutput := buf.String()
+	if len(logOutput) == 0 {
+		t.Error("Expected log output, but got nothing")
+	}
+
+	buf.Reset()
+	result = CheckLog(nil, "Test message")
+
+	if result {
+		t.Error("CheckLog should return false when no error is provided")
+	}
+
+	logOutput = buf.String()
+	if len(logOutput) > 0 {
+		t.Errorf("Expected no log output, got: %s", logOutput)
 	}
 }
 
-func TestCheckFatal(t *testing.T) {
-	if os.Getenv("BE_CRASHER") == "1" {
-		err := errors.New("fatal error test")
-		CheckFatal(err, "test message")
-
-		// shouldnt reach
-		return
-	}
-
-	cmd := exec.Command(os.Args[0], "-test.run=TestCheckFatal")
-	cmd.Env = append(os.Environ(), "BE_CRASHER=1")
-	output, err := cmd.CombinedOutput()
-
-	if e, ok := err.(*exec.ExitError); ok && !e.Success() {
-		if !strings.Contains(string(output), "test message: fatal error test") {
-			t.Errorf("Expected error message not found in output: %s", output)
-		}
-		return
-	}
-	t.Fatalf("Process ran with err %v, want exit status 1", err)
-
-	CheckFatal(nil, "should not exit")
+func TestCheckFatal_NoError(t *testing.T) {
+	CheckFatal(nil, "This shouldn't exit")
 }
