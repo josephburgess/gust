@@ -19,11 +19,12 @@ func TestSimpleIntegration(t *testing.T) {
 				t.Errorf("failed to write response: %v", err)
 			}
 		case "/data/2.5/weather":
-			w.Write([]byte(`{
+			if _, err := w.Write([]byte(`{
 				"main": {"temp": 283.15},
 				"weather": [{"description": "cloudy"}]
-			}`))
-
+			}`)); err != nil {
+				t.Errorf("failed to write response: %v", err)
+			}
 		default:
 			http.NotFound(w, r)
 		}
