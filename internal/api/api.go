@@ -16,10 +16,12 @@ var (
 	weatherURL = baseURL + "data/2.5/weather?lat=%f&lon=%f&appid=%s"
 )
 
+// GetBaseURL returns the current base URL (for testing)
 func GetBaseURL() string {
 	return baseURL
 }
 
+// SetBaseURL sets the base URL (for testing)
 func SetBaseURL(url string) {
 	baseURL = url
 	geoCodeURL = baseURL + "geo/1.0/direct?q=%s&limit=1&appid=%s"
@@ -66,11 +68,28 @@ func GetWeather(lat, lon float64, apiKey string) (*models.Weather, error) {
 
 	var result struct {
 		Main struct {
-			Temp float64 `json:"temp"`
+			Temp      float64 `json:"temp"`
+			FeelsLike float64 `json:"feels_like"`
+			TempMin   float64 `json:"temp_min"`
+			TempMax   float64 `json:"temp_max"`
+			Pressure  int     `json:"pressure"`
+			Humidity  int     `json:"humidity"`
 		} `json:"main"`
 		Weather []struct {
 			Description string `json:"description"`
 		} `json:"weather"`
+		Wind struct {
+			Speed float64 `json:"speed"`
+			Deg   int     `json:"deg"`
+		} `json:"wind"`
+		Clouds struct {
+			All int `json:"all"`
+		} `json:"clouds"`
+		Visibility int `json:"visibility"`
+		Sys        struct {
+			Sunrise int64 `json:"sunrise"`
+			Sunset  int64 `json:"sunset"`
+		} `json:"sys"`
 	}
 
 	if err := fetchJSON(requestURL, &result); err != nil {
@@ -84,6 +103,17 @@ func GetWeather(lat, lon float64, apiKey string) (*models.Weather, error) {
 	weather := &models.Weather{
 		Temp:        result.Main.Temp,
 		Description: result.Weather[0].Description,
+		FeelsLike:   result.Main.FeelsLike,
+		TempMin:     result.Main.TempMin,
+		TempMax:     result.Main.TempMax,
+		Humidity:    result.Main.Humidity,
+		WindSpeed:   result.Wind.Speed,
+		WindDeg:     result.Wind.Deg,
+		CloudsAll:   result.Clouds.All,
+		Visibility:  result.Visibility,
+		Pressure:    result.Main.Pressure,
+		Sunrise:     result.Sys.Sunrise,
+		Sunset:      result.Sys.Sunset,
 	}
 
 	return weather, nil
