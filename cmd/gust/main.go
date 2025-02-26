@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/joho/godotenv"
 	"github.com/josephburgess/gust/internal/api"
@@ -21,9 +22,19 @@ func main() {
 		)
 	}
 
-	cityPtr := flag.String("city", "London", "Name of the city")
+	cityPtr := flag.String("city", "", "Name of the city")
 	flag.Parse()
-	cityName := *cityPtr
+
+	args := flag.Args()
+	var cityName string
+
+	if *cityPtr != "" {
+		cityName = *cityPtr
+	} else if len(args) > 0 {
+		cityName = strings.Join(args, " ")
+	} else {
+		cityName = "London"
+	}
 
 	city, err := api.GetCoordinates(cityName, apiKey)
 	errhandler.CheckFatal(err, "Failed to get coordinates")
