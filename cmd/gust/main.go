@@ -1,4 +1,3 @@
-// File: /gust/cmd/gust/main.go
 package main
 
 import (
@@ -12,17 +11,18 @@ import (
 )
 
 func main() {
-	err := godotenv.Load()
-	errhandler.CheckFatal(err, "Error loading .env file")
+	_ = godotenv.Load()
 
 	apiKey := os.Getenv("OPENWEATHER_API_KEY")
 	if apiKey == "" {
-		errhandler.CheckFatal(fmt.Errorf("API key not found"), "Missing OpenWeather API key")
+		errhandler.CheckFatal(
+			fmt.Errorf("no OPENWEATHER_API_KEY found"),
+			"Please set an API key in the environment",
+		)
 	}
 
-	cityPtr := flag.String("city", "London", "City name to fetch weather for")
+	cityPtr := flag.String("city", "London", "Name of the city")
 	flag.Parse()
-
 	cityName := *cityPtr
 
 	city, err := api.GetCoordinates(cityName, apiKey)
@@ -31,7 +31,7 @@ func main() {
 	weather, err := api.GetWeather(city.Lat, city.Lon, apiKey)
 	errhandler.CheckFatal(err, "Failed to get weather")
 
-	fmt.Printf("Weather in %s:\n", city.Name)
-	fmt.Printf("Temperature: %.1f°C\n", weather.Temp-273.15) // Kelvin to °C
-	fmt.Printf("Conditions: %s\n", weather.Description)
+	fmt.Printf("Current weather in %s:\n", city.Name)
+	fmt.Printf("  Temperature: %.1f°C\n", weather.Temp-273.15)
+	fmt.Printf("  Conditions : %s %s\n", weather.Description, weather.Emoji())
 }

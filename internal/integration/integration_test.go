@@ -20,9 +20,9 @@ func TestSimpleIntegration(t *testing.T) {
 			}
 		case "/data/2.5/weather":
 			if _, err := w.Write([]byte(`{
-				"main": {"temp": 283.15},
-				"weather": [{"description": "cloudy"}]
-			}`)); err != nil {
+                "main": {"temp": 283.15},
+                "weather": [{"description": "cloudy"}]
+            }`)); err != nil {
 				t.Errorf("failed to write response: %v", err)
 			}
 		default:
@@ -31,10 +31,9 @@ func TestSimpleIntegration(t *testing.T) {
 	}))
 	defer server.Close()
 
-	originalBaseURL := api.GetBaseURL()
 	api.SetBaseURL(server.URL + "/")
-	defer api.SetBaseURL(originalBaseURL)
 
+	// Now call the API
 	city, err := api.GetCoordinates("London", "test-api-key")
 	if err != nil {
 		t.Fatalf("GetCoordinates failed: %v", err)
