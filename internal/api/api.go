@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"time"
 
 	"github.com/josephburgess/gust/internal/models"
 )
@@ -24,58 +25,16 @@ func SetBaseURL(u string) {
 	forecastURL = baseURL + "data/2.5/forecast?lat=%f&lon=%f&appid=%s"
 }
 
-func GetForecast(lat, lon float64, apiKey string) ([]models.ForecastItem, error) {
-	requestURL := fmt.Sprintf(forecastURL, lat, lon, apiKey)
-
-	resp, err := http.Get(requestURL)
-	if err != nil {
-		return nil, fmt.Errorf("forecast request failed: %w", err)
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("reading forecast response body: %w", err)
-	}
-
-	// { "list": [ { "dt_txt": "...", "main": { "temp": ... }, "weather": [{"description": "..."}] }, ... ] }
-	var result struct {
-		List []struct {
-			DtTxt string `json:"dt_txt"`
-			Main  struct {
-				Temp float64 `json:"temp"`
-			} `json:"main"`
-			Weather []struct {
-				Description string `json:"description"`
-			} `json:"weather"`
-		} `json:"list"`
-	}
-
-	if err := json.Unmarshal(body, &result); err != nil {
-		return nil, fmt.Errorf("unmarshaling forecast JSON: %w", err)
-	}
-
-	var forecast []models.ForecastItem
-	for _, item := range result.List {
-		if len(item.Weather) == 0 {
-			continue
-		}
-		forecast = append(forecast, models.ForecastItem{
-			DateTime:    item.DtTxt,
-			Temp:        item.Main.Temp,
-			Description: item.Weather[0].Description,
-		})
-	}
-
-	return forecast, nil
-}
-
 func fetchJSON(url string, target any) error {
 	resp, err := http.Get(url)
 	if err != nil {
 		return fmt.Errorf("HTTP request failed: %w", err)
 	}
 	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("API request failed with status code: %d", resp.StatusCode)
+	}
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -105,19 +64,45 @@ func GetCoordinates(city, apiKey string) (*models.City, error) {
 	return &cities[0], nil
 }
 
-func GetWeather(lat, lon float64, apiKey string) (*models.Weather, error) {
+// GetCurrentWeather gets detailed current weather data
+func GetCurrentWeather(lat, lon float64, apiKey string) (*models.Weather, error) {
 	requestURL := fmt.Sprintf(weatherURL, lat, lon, apiKey)
 
 	var result struct {
-		Main struct {
-			Temp float64 `json:"temp"`
-		} `json:"main"`
 		Weather []struct {
 			ID          int    `json:"id"`
 			Main        string `json:"main"`
 			Description string `json:"description"`
 			Icon        string `json:"icon"`
 		} `json:"weather"`
+		Main struct {
+			Temp      float64 `json:"temp"`
+			FeelsLike float64 `json:"feels_like"`
+			TempMin   float64 `json:"temp_min"`
+			TempMax   float64 `json:"temp_max"`
+			Pressure  int     `json:"pressure"`
+			Humidity  int     `json:"humidity"`
+			SeaLevel  int     `json:"sea_level,omitempty"`
+			GrndLevel int     `json:"grnd_level,omitempty"`
+		} `json:"main"`
+		Visibility int `json:"visibility"`
+		Wind       struct {
+			Speed float64 `json:"speed"`
+			Deg   int     `json:"deg"`
+			Gust  float64 `json:"gust,omitempty"`
+		} `json:"wind"`
+		Rain struct {
+			OneHour float64 `json:"1h,omitempty"`
+		} `json:"rain,omitempty"`
+		Clouds struct {
+			All int `json:"all"`
+		} `json:"clouds"`
+		Sys struct {
+			Sunrise int64  `json:"sunrise"`
+			Sunset  int64  `json:"sunset"`
+			Country string `json:"country"`
+		} `json:"sys"`
+		Name string `json:"name"`
 	}
 
 	if err := fetchJSON(requestURL, &result); err != nil {
@@ -128,12 +113,118 @@ func GetWeather(lat, lon float64, apiKey string) (*models.Weather, error) {
 		return nil, fmt.Errorf("no weather data available")
 	}
 
-	first := result.Weather[0]
-	w := &models.Weather{
-		ID:          first.ID,
-		Icon:        first.Icon,
+	weather := &models.Weather{
+		ID:          result.Weather[0].ID,
+		Icon:        result.Weather[0].Icon,
+		Description: result.Weather[0].Description,
 		Temp:        result.Main.Temp,
-		Description: first.Description,
+		FeelsLike:   result.Main.FeelsLike,
+		TempMin:     result.Main.TempMin,
+		TempMax:     result.Main.TempMax,
+		Humidity:    result.Main.Humidity,
+		Pressure:    result.Main.Pressure,
+		Visibility:  result.Visibility,
+		WindSpeed:   result.Wind.Speed,
+		WindDeg:     result.Wind.Deg,
+		WindGust:    result.Wind.Gust,
+		Rain1h:      result.Rain.OneHour,
+		Clouds:      result.Clouds.All,
+		Sunrise:     result.Sys.Sunrise,
+		Sunset:      result.Sys.Sunset,
 	}
-	return w, nil
+
+	return weather, nil
+}
+
+// GetForecast gets weather forecast data
+func GetForecast(lat, lon float64, apiKey string) ([]models.ForecastItem, error) {
+	requestURL := fmt.Sprintf(forecastURL, lat, lon, apiKey)
+
+	var result struct {
+		List []struct {
+			Dt   int64 `json:"dt"`
+			Main struct {
+				Temp      float64 `json:"temp"`
+				FeelsLike float64 `json:"feels_like"`
+				TempMin   float64 `json:"temp_min"`
+				TempMax   float64 `json:"temp_max"`
+				Pressure  int     `json:"pressure"`
+				Humidity  int     `json:"humidity"`
+			} `json:"main"`
+			Weather []struct {
+				ID          int    `json:"id"`
+				Main        string `json:"main"`
+				Description string `json:"description"`
+				Icon        string `json:"icon"`
+			} `json:"weather"`
+			Wind struct {
+				Speed float64 `json:"speed"`
+				Deg   int     `json:"deg"`
+			} `json:"wind"`
+			Pop float64 `json:"pop"`
+		} `json:"list"`
+	}
+
+	if err := fetchJSON(requestURL, &result); err != nil {
+		return nil, err
+	}
+
+	var forecasts []models.ForecastItem
+
+	// Get one forecast per day (using noon forecast)
+	uniqueDays := make(map[string]bool)
+	for _, item := range result.List {
+		// Skip if there's no weather data
+		if len(item.Weather) == 0 {
+			continue
+		}
+
+		// Get the day string
+		day := time.Unix(item.Dt, 0).Format("2006-01-02")
+
+		// Only take the first forecast of each day
+		if !uniqueDays[day] {
+			uniqueDays[day] = true
+			forecast := models.ForecastItem{
+				DateTime:    item.Dt,
+				TempMin:     item.Main.TempMin,
+				TempMax:     item.Main.TempMax,
+				WeatherID:   item.Weather[0].ID,
+				Icon:        item.Weather[0].Icon,
+				Description: item.Weather[0].Description,
+				Humidity:    item.Main.Humidity,
+				WindSpeed:   item.Wind.Speed,
+				WindDeg:     item.Wind.Deg,
+				Pop:         item.Pop,
+			}
+			forecasts = append(forecasts, forecast)
+
+			// Limit to 5 days
+			if len(forecasts) >= 5 {
+				break
+			}
+		}
+	}
+
+	return forecasts, nil
+}
+
+// GetWeatherAndForecast gets both current weather and forecast data
+func GetWeatherAndForecast(lat, lon float64, apiKey string) (*models.Weather, []models.ForecastItem, error) {
+	weather, err := GetCurrentWeather(lat, lon, apiKey)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	forecast, err := GetForecast(lat, lon, apiKey)
+	if err != nil {
+		return weather, nil, err
+	}
+
+	return weather, forecast, nil
+}
+
+// Legacy function to maintain compatibility
+func GetWeather(lat, lon float64, apiKey string) (*models.Weather, error) {
+	return GetCurrentWeather(lat, lon, apiKey)
 }
