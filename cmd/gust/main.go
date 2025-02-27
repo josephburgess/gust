@@ -6,16 +6,32 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math"
 	"net/http"
 	"net/url"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/fatih/color"
 	"github.com/joho/godotenv"
 	"github.com/josephburgess/gust/internal/config"
 	"github.com/josephburgess/gust/internal/errhandler"
 	"github.com/josephburgess/gust/internal/models"
+)
+
+type WeatherResponse struct {
+	City    *models.City            `json:"city"`
+	Weather *models.OneCallResponse `json:"weather"`
+}
+
+var (
+	headerStyle    = color.New(color.FgHiCyan, color.Bold).SprintFunc()
+	tempStyle      = color.New(color.FgHiYellow, color.Bold).SprintFunc()
+	highlightStyle = color.New(color.FgHiWhite).SprintFunc()
+	infoStyle      = color.New(color.FgHiBlue).SprintFunc()
+	timeStyle      = color.New(color.FgHiYellow).SprintFunc()
+	alertStyle     = color.New(color.FgHiRed, color.Bold).SprintFunc()
 )
 
 func main() {
@@ -27,16 +43,17 @@ func main() {
 	loginPtr := flag.Bool("login", false, "Authenticate with GitHub")
 	logoutPtr := flag.Bool("logout", false, "Log out and remove authentication")
 	apiURLPtr := flag.String("api", "", "Set custom API server URL")
-	forecastPtr := flag.Bool("f", false, "Show output including forecast")
+	fullPtr := flag.Bool("full", false, "Show full weather report including daily and hourly forecasts")
+	dailyPtr := flag.Bool("daily", false, "Show daily forecast only")
+	hourlyPtr := flag.Bool("hourly", false, "Show hourly forecast only")
+	alertsPtr := flag.Bool("alerts", false, "Show weather alerts only")
 	flag.Parse()
 
-	// Load regular config
 	cfg, err := config.Load()
 	if err != nil {
 		errhandler.CheckFatal(err, "Failed to load configuration")
 	}
 
-	// Handle API URL setting
 	if *apiURLPtr != "" {
 		cfg.APIURL = *apiURLPtr
 		if err := cfg.Save(); err != nil {
@@ -46,15 +63,13 @@ func main() {
 		return
 	}
 
-	// Set default API URL if not set
 	if cfg.APIURL == "" {
-		cfg.APIURL = "https://gust.ngrok.io" // Default API server
+		cfg.APIURL = "https://gust.ngrok.io"
 		if err := cfg.Save(); err != nil {
 			errhandler.CheckFatal(err, "Failed to save configuration")
 		}
 	}
 
-	// Handle logout
 	if *logoutPtr {
 		authConfig, _ := config.LoadAuthConfig()
 		if authConfig != nil {
@@ -73,7 +88,6 @@ func main() {
 		return
 	}
 
-	// Handle login
 	if *loginPtr {
 		fmt.Println("Starting GitHub authentication...")
 		authConfig, err := config.Authenticate(cfg.APIURL)
@@ -89,7 +103,6 @@ func main() {
 		return
 	}
 
-	// Handle default city setting
 	if *setDefaultCityPtr != "" {
 		cfg.DefaultCity = *setDefaultCityPtr
 		if err := cfg.Save(); err != nil {
@@ -99,20 +112,17 @@ func main() {
 		return
 	}
 
-	// Load auth config
 	authConfig, err := config.LoadAuthConfig()
 	if err != nil {
 		errhandler.CheckFatal(err, "Failed to load authentication")
 	}
 
-	// Check if auth is required
 	if authConfig == nil {
 		fmt.Println("You need to authenticate with GitHub before using Gust.")
 		fmt.Println("Run 'gust --login' to authenticate.")
 		os.Exit(1)
 	}
 
-	// Determine city
 	var cityName string
 	args := flag.Args()
 	if *cityPtr != "" {
@@ -123,7 +133,6 @@ func main() {
 		cityName = cfg.DefaultCity
 	}
 
-	// Check if default city is set
 	if cityName == "" {
 		fmt.Println("No city specified and no default city set.")
 		fmt.Println("Specify a city: gust [city name]")
@@ -131,31 +140,23 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Make API request to get weather data
-	if *forecastPtr {
-		weather, forecast, err := getWeatherAndForecast(cfg.APIURL, authConfig.APIKey, cityName)
-		errhandler.CheckFatal(err, "Failed to get weather data")
-		displayWeather(weather.City, weather.Weather, forecast, *forecastPtr)
+	weather, err := getWeather(cfg.APIURL, authConfig.APIKey, cityName)
+	errhandler.CheckFatal(err, "Failed to get weather data")
+
+	if *alertsPtr {
+		displayAlerts(weather.City, weather.Weather)
+	} else if *hourlyPtr {
+		displayHourlyForecast(weather.City, weather.Weather)
+	} else if *dailyPtr {
+		displayDailyForecast(weather.City, weather.Weather)
+	} else if *fullPtr {
+		displayFullWeather(weather.City, weather.Weather)
 	} else {
-		weather, err := getCurrentWeather(cfg.APIURL, authConfig.APIKey, cityName)
-		errhandler.CheckFatal(err, "Failed to get weather data")
-		displayWeather(weather.City, weather.Weather, nil, *forecastPtr)
+		displayCurrentWeather(weather.City, weather.Weather)
 	}
 }
 
-// API response structure
-type WeatherResponse struct {
-	City    *models.City    `json:"city"`
-	Weather *models.Weather `json:"weather"`
-}
-
-type ForecastResponse struct {
-	City     *models.City          `json:"city"`
-	Forecast []models.ForecastItem `json:"forecast"`
-}
-
-// Get current weather from API
-func getCurrentWeather(apiURL, apiKey, cityName string) (*WeatherResponse, error) {
+func getWeather(apiURL, apiKey, cityName string) (*WeatherResponse, error) {
 	url := fmt.Sprintf("%s/api/weather/%s?api_key=%s",
 		apiURL, url.QueryEscape(cityName), apiKey)
 
@@ -178,125 +179,216 @@ func getCurrentWeather(apiURL, apiKey, cityName string) (*WeatherResponse, error
 	return &response, nil
 }
 
-// Get weather and forecast from API
-func getWeatherAndForecast(apiURL, apiKey, cityName string) (*WeatherResponse, []models.ForecastItem, error) {
-	// Get current weather
-	weather, err := getCurrentWeather(apiURL, apiKey, cityName)
-	if err != nil {
-		return nil, nil, err
-	}
+func displayCurrentWeather(city *models.City, weather *models.OneCallResponse) {
+	current := weather.Current
 
-	// Get forecast
-	url := fmt.Sprintf("%s/api/forecast/%s?api_key=%s",
-		apiURL, url.QueryEscape(cityName), apiKey)
-
-	resp, err := http.Get(url)
-	if err != nil {
-		return weather, nil, fmt.Errorf("failed to connect to API: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return weather, nil, fmt.Errorf("API error (%d): %s", resp.StatusCode, string(body))
-	}
-
-	var forecastResp ForecastResponse
-	if err := json.NewDecoder(resp.Body).Decode(&forecastResp); err != nil {
-		return weather, nil, fmt.Errorf("failed to decode API response: %w", err)
-	}
-
-	return weather, forecastResp.Forecast, nil
-}
-
-// The displayWeather function remains the same as in your original code
-func displayWeather(city *models.City, weather *models.Weather, forecast []models.ForecastItem, showForecast bool) {
-	// styled output funcs
-	headerStyle := color.New(color.FgHiCyan, color.Bold).SprintFunc()
-	tempStyle := color.New(color.FgHiYellow, color.Bold).SprintFunc()
-	highlightStyle := color.New(color.FgHiWhite).SprintFunc()
-	infoStyle := color.New(color.FgHiBlue).SprintFunc()
-
-	// header
 	fmt.Printf("\n%s\n", headerStyle(fmt.Sprintf("WEATHER FOR %s", strings.ToUpper(city.Name))))
 	fmt.Println(strings.Repeat("─", 50))
 
-	// emoji
-	fmt.Printf("Current Conditions: %s %s\n\n",
-		highlightStyle(weather.Description),
-		weather.Emoji())
+	if len(current.Weather) > 0 {
+		weatherCond := current.Weather[0]
+		fmt.Printf("Current Conditions: %s %s\n\n",
+			highlightStyle(weatherCond.Description),
+			models.GetWeatherEmoji(weatherCond.ID))
 
-	// temp
-	fmt.Printf("Temperature: %s %s (Feels like: %.1f°C)\n",
-		tempStyle(fmt.Sprintf("%.1f°C", models.KelvinToCelsius(weather.Temp))),
-		"🌡️",
-		models.KelvinToCelsius(weather.FeelsLike))
+		fmt.Printf("Temperature: %s %s (Feels like: %.1f°C)\n",
+			tempStyle(fmt.Sprintf("%.1f°C", models.KelvinToCelsius(current.Temp))),
+			"🌡️",
+			models.KelvinToCelsius(current.FeelsLike))
 
-	// temp range
-	if weather.TempMin > 0 && weather.TempMax > 0 {
-		fmt.Printf("Range: %.1f°C to %.1f°C\n",
-			models.KelvinToCelsius(weather.TempMin),
-			models.KelvinToCelsius(weather.TempMax))
+		fmt.Printf("Humidity: %d%% %s\n", current.Humidity, "💧")
+
+		fmt.Printf("UV Index: %.1f ☀️\n", current.UVI)
+
+		if current.WindGust > 0 {
+			fmt.Printf("Wind: %.1f km/h %s %s (Gusts: %.1f km/h)\n",
+				current.WindSpeed*3.6, // m/s to km/h
+				models.GetWindDirection(current.WindDeg),
+				"💨",
+				current.WindGust*3.6)
+		} else {
+			fmt.Printf("Wind: %.1f km/h %s %s\n",
+				current.WindSpeed*3.6, // m/s to km/h
+				models.GetWindDirection(current.WindDeg),
+				"💨")
+		}
+
+		if current.Clouds > 0 {
+			fmt.Printf("Cloud coverage: %d%% ☁️\n", current.Clouds)
+		}
+
+		if current.Rain != nil && current.Rain.OneHour > 0 {
+			fmt.Printf("Rain: %.1f mm (last hour) 🌧️\n", current.Rain.OneHour)
+		}
+
+		if current.Snow != nil && current.Snow.OneHour > 0 {
+			fmt.Printf("Snow: %.1f mm (last hour) ❄️\n", current.Snow.OneHour)
+		}
+
+		fmt.Printf("Visibility: %s\n", models.VisibilityToString(current.Visibility))
+
+		fmt.Printf("Sunrise: %s %s  Sunset: %s %s\n\n",
+			time.Unix(current.Sunrise, 0).Format("15:04"),
+			"🌅",
+			time.Unix(current.Sunset, 0).Format("15:04"),
+			"🌇")
 	}
 
-	// humidity
-	fmt.Printf("Humidity: %d%% %s\n", weather.Humidity, "💧")
-
-	// wind / gusts if avail
-	if weather.WindGust > 0 {
-		fmt.Printf("Wind: %.1f km/h %s %s (Gusts: %.1f km/h)\n",
-			weather.WindSpeed*3.6, // m/s to km/h
-			models.GetWindDirection(weather.WindDeg),
-			"💨",
-			weather.WindGust*3.6)
-	} else {
-		fmt.Printf("Wind: %.1f km/h %s %s\n",
-			weather.WindSpeed*3.6, // m/s to km/h
-			models.GetWindDirection(weather.WindDeg),
-			"💨")
+	if len(weather.Alerts) > 0 {
+		alertStyle := color.New(color.FgHiRed, color.Bold).SprintFunc()
+		fmt.Printf("%s Use 'gust --alerts %s' to view them.\n",
+			alertStyle(fmt.Sprintf("⚠️  There are %d weather alerts for this area.", len(weather.Alerts))),
+			city.Name)
 	}
+}
 
-	// cloud
-	if weather.Clouds > 0 {
-		fmt.Printf("Cloud coverage: %d%% ☁️\n", weather.Clouds)
-	}
+func displayDailyForecast(city *models.City, weather *models.OneCallResponse) {
+	fmt.Printf("\n%s\n", headerStyle(fmt.Sprintf("7-DAY FORECAST FOR %s", strings.ToUpper(city.Name))))
+	fmt.Println(strings.Repeat("─", 50))
 
-	// rain
-	if weather.Rain1h > 0 {
-		fmt.Printf("Rain: %.1f mm (last hour) 🌧️\n", weather.Rain1h)
-	}
+	if len(weather.Daily) > 0 {
+		for i, day := range weather.Daily {
+			if i >= 5 {
+				break
+			}
 
-	// sunrise
-	fmt.Printf("Sunrise: %s %s  Sunset: %s %s\n\n",
-		models.FormatTimestamp(weather.Sunrise),
-		"🌅",
-		models.FormatTimestamp(weather.Sunset),
-		"🌇")
+			date := time.Unix(day.Dt, 0).Format("Mon Jan 2")
 
-	// forecast
-	if showForecast && len(forecast) > 0 {
-		fmt.Println(headerStyle("5-DAY FORECAST"))
-		fmt.Println(strings.Repeat("─", 50))
-
-		for i, day := range forecast {
-			date := models.FormatDay(day.DateTime)
-
-			// add spacer if more than 1
 			if i > 0 {
 				fmt.Println()
 			}
 
-			// Day header with date
-			fmt.Printf("%s:\n", highlightStyle(date))
+			fmt.Printf("%s: %s\n",
+				highlightStyle(date),
+				day.Summary)
 
-			// Temperature range with emoji
-			fmt.Printf("  Highs: %s %s\n",
-				tempStyle(fmt.Sprintf("%.1f°C", models.KelvinToCelsius(day.TempMax))),
+			fmt.Printf("  High/Low: %s/%s %s\n",
+				tempStyle(fmt.Sprintf("%.1f°C", models.KelvinToCelsius(day.Temp.Max))),
+				tempStyle(fmt.Sprintf("%.1f°C", models.KelvinToCelsius(day.Temp.Min))),
 				"🌡️")
 
-			condition := fmt.Sprintf("%s %s", day.Description, day.Emoji())
-			fmt.Printf("  Conditions: %s\n", infoStyle(condition))
+			fmt.Printf("  Morning: %.1f°C  Day: %.1f°C  Evening: %.1f°C  Night: %.1f°C\n",
+				models.KelvinToCelsius(day.Temp.Morn),
+				models.KelvinToCelsius(day.Temp.Day),
+				models.KelvinToCelsius(day.Temp.Eve),
+				models.KelvinToCelsius(day.Temp.Night))
+
+			if len(day.Weather) > 0 {
+				weather := day.Weather[0]
+				condition := fmt.Sprintf("%s %s", weather.Description, models.GetWeatherEmoji(weather.ID))
+				fmt.Printf("  Conditions: %s\n", infoStyle(condition))
+			}
+
+			if day.Pop > 0 {
+				fmt.Printf("  Precipitation: %d%% chance\n", int(day.Pop*100))
+			}
+			if day.Rain > 0 {
+				fmt.Printf("  Rain: %.1f mm 🌧️\n", day.Rain)
+			}
+
+			if day.Snow > 0 {
+				fmt.Printf("  Snow: %.1f mm ❄️\n", day.Snow)
+			}
+
+			fmt.Printf("  Wind: %.1f km/h %s\n",
+				day.WindSpeed*3.6,
+				models.GetWindDirection(day.WindDeg))
+
+			fmt.Printf("  UV Index: %.1f\n", day.UVI)
 		}
 		fmt.Println()
 	}
+}
+
+func displayHourlyForecast(city *models.City, weather *models.OneCallResponse) {
+	fmt.Printf("\n%s\n", headerStyle(fmt.Sprintf("HOURLY FORECAST FOR %s", strings.ToUpper(city.Name))))
+	fmt.Println(strings.Repeat("─", 50))
+
+	if len(weather.Hourly) > 0 {
+		hourLimit := 24
+		hourLimit = int(math.Min(float64(hourLimit), float64(len(weather.Hourly))))
+
+		currentDay := ""
+
+		for i := 0; i < hourLimit; i++ {
+			hour := weather.Hourly[i]
+
+			t := time.Unix(hour.Dt, 0)
+			day := t.Format("Mon Jan 2")
+			hourStr := t.Format("15:04")
+
+			if day != currentDay {
+				if currentDay != "" {
+					fmt.Println()
+				}
+				fmt.Printf("%s:\n", highlightStyle(day))
+				currentDay = day
+			}
+
+			if len(hour.Weather) == 0 {
+				continue
+			}
+
+			weatherCond := hour.Weather[0]
+
+			temp := tempStyle(fmt.Sprintf("%.1f°C", models.KelvinToCelsius(hour.Temp)))
+
+			popStr := ""
+			if hour.Pop > 0 {
+				popStr = fmt.Sprintf(" (%.0f%% chance of precipitation)", hour.Pop*100)
+			}
+
+			fmt.Printf("  %s: %s %s  %s%s\n",
+				hourStr,
+				temp,
+				models.GetWeatherEmoji(weatherCond.ID),
+				infoStyle(weatherCond.Description),
+				popStr)
+
+			if hour.Rain != nil && hour.Rain.OneHour > 0 {
+				fmt.Printf("       Rain: %.1f mm/h\n", hour.Rain.OneHour)
+			}
+
+			if hour.Snow != nil && hour.Snow.OneHour > 0 {
+				fmt.Printf("       Snow: %.1f mm/h\n", hour.Snow.OneHour)
+			}
+		}
+		fmt.Println()
+	}
+}
+
+func displayAlerts(city *models.City, weather *models.OneCallResponse) {
+	fmt.Printf("\n%s\n", headerStyle(fmt.Sprintf("WEATHER ALERTS FOR %s", strings.ToUpper(city.Name))))
+	fmt.Println(strings.Repeat("─", 50))
+
+	if len(weather.Alerts) == 0 {
+		fmt.Println("No weather alerts for this area.")
+		return
+	}
+
+	for i, alert := range weather.Alerts {
+		if i > 0 {
+			fmt.Println(strings.Repeat("─", 50))
+		}
+
+		fmt.Printf("%s\n", alertStyle(fmt.Sprintf("⚠️  %s", alert.Event)))
+		fmt.Printf("Issued by: %s\n", alert.SenderName)
+		fmt.Printf("Valid: %s to %s\n\n",
+			timeStyle(time.Unix(alert.Start, 0).Format("Mon Jan 2 15:04")),
+			timeStyle(time.Unix(alert.End, 0).Format("Mon Jan 2 15:04")))
+
+		fmt.Println(alert.Description)
+		fmt.Println()
+	}
+}
+
+func displayFullWeather(city *models.City, weather *models.OneCallResponse) {
+	displayCurrentWeather(city, weather)
+	fmt.Println()
+	if len(weather.Alerts) > 0 {
+		displayAlerts(city, weather)
+		fmt.Println()
+	}
+	displayDailyForecast(city, weather)
+	fmt.Println()
 }
