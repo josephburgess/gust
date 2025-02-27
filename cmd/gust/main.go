@@ -1,14 +1,18 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
+	"log"
+	"net/http"
+	"net/url"
 	"os"
 	"strings"
 
 	"github.com/fatih/color"
 	"github.com/joho/godotenv"
-	"github.com/josephburgess/gust/internal/api"
 	"github.com/josephburgess/gust/internal/config"
 	"github.com/josephburgess/gust/internal/errhandler"
 	"github.com/josephburgess/gust/internal/models"
@@ -17,17 +21,75 @@ import (
 func main() {
 	_ = godotenv.Load()
 
+	// Command-line flags
 	cityPtr := flag.String("city", "", "Name of the city")
 	setDefaultCityPtr := flag.String("default", "", "Set a new default city")
-	setAPIKeyPtr := flag.String("apikey", "", "Set a new OpenWeather API key")
+	loginPtr := flag.Bool("login", false, "Authenticate with GitHub")
+	logoutPtr := flag.Bool("logout", false, "Log out and remove authentication")
+	apiURLPtr := flag.String("api", "", "Set custom API server URL")
 	forecastPtr := flag.Bool("f", false, "Show output including forecast")
 	flag.Parse()
 
+	// Load regular config
 	cfg, err := config.Load()
 	if err != nil {
 		errhandler.CheckFatal(err, "Failed to load configuration")
 	}
 
+	// Handle API URL setting
+	if *apiURLPtr != "" {
+		cfg.APIURL = *apiURLPtr
+		if err := cfg.Save(); err != nil {
+			errhandler.CheckFatal(err, "Failed to save configuration")
+		}
+		fmt.Printf("API server URL set to: %s\n", *apiURLPtr)
+		return
+	}
+
+	// Set default API URL if not set
+	if cfg.APIURL == "" {
+		cfg.APIURL = "https://gust.ngrok.io" // Default API server
+		if err := cfg.Save(); err != nil {
+			errhandler.CheckFatal(err, "Failed to save configuration")
+		}
+	}
+
+	// Handle logout
+	if *logoutPtr {
+		authConfig, _ := config.LoadAuthConfig()
+		if authConfig != nil {
+			authConfigPath, err := config.GetAuthConfigPath()
+			if err != nil {
+				log.Fatalf("Failed to get auth config path: %v", err)
+			}
+
+			if err := os.Remove(authConfigPath); err != nil {
+				log.Fatalf("Failed to remove auth config file: %v", err)
+			}
+			fmt.Println("Logged out successfully")
+		} else {
+			fmt.Println("Not currently logged in")
+		}
+		return
+	}
+
+	// Handle login
+	if *loginPtr {
+		fmt.Println("Starting GitHub authentication...")
+		authConfig, err := config.Authenticate(cfg.APIURL)
+		if err != nil {
+			errhandler.CheckFatal(err, "Authentication failed")
+		}
+
+		if err := config.SaveAuthConfig(authConfig); err != nil {
+			errhandler.CheckFatal(err, "Failed to save authentication")
+		}
+
+		fmt.Printf("Successfully authenticated as %s\n", authConfig.GithubUser)
+		return
+	}
+
+	// Handle default city setting
 	if *setDefaultCityPtr != "" {
 		cfg.DefaultCity = *setDefaultCityPtr
 		if err := cfg.Save(); err != nil {
@@ -37,42 +99,21 @@ func main() {
 		return
 	}
 
-	if *setAPIKeyPtr != "" {
-		cfg.APIKey = *setAPIKeyPtr
-		if err := cfg.Save(); err != nil {
-			errhandler.CheckFatal(err, "Failed to save configuration")
-		}
-		fmt.Println("API key updated successfully")
-		return
+	// Load auth config
+	authConfig, err := config.LoadAuthConfig()
+	if err != nil {
+		errhandler.CheckFatal(err, "Failed to load authentication")
 	}
 
-	if cfg.APIKey == "" || cfg.DefaultCity == "" {
-		fmt.Println("First-time setup required")
-		newCfg, err := config.PromptForConfiguration()
-		if err != nil {
-			errhandler.CheckFatal(err, "Failed to configure")
-		}
-		*cfg = *newCfg
-		if err := cfg.Save(); err != nil {
-			errhandler.CheckFatal(err, "Failed to save configuration")
-		}
+	// Check if auth is required
+	if authConfig == nil {
+		fmt.Println("You need to authenticate with GitHub before using Gust.")
+		fmt.Println("Run 'gust --login' to authenticate.")
+		os.Exit(1)
 	}
 
-	apiKey := cfg.APIKey
-
-	if apiKey == "" {
-		apiKey = os.Getenv("OPENWEATHER_API_KEY")
-	}
-
-	if apiKey == "" {
-		errhandler.CheckFatal(
-			fmt.Errorf("no OpenWeather API key found"),
-			"Please set an API key using --set-api-key or run the setup again",
-		)
-	}
-
+	// Determine city
 	var cityName string
-
 	args := flag.Args()
 	if *cityPtr != "" {
 		cityName = *cityPtr
@@ -82,29 +123,99 @@ func main() {
 		cityName = cfg.DefaultCity
 	}
 
-	city, err := api.GetCoordinates(cityName, apiKey)
-	errhandler.CheckFatal(err, "Failed to get coordinates")
+	// Check if default city is set
+	if cityName == "" {
+		fmt.Println("No city specified and no default city set.")
+		fmt.Println("Specify a city: gust [city name]")
+		fmt.Println("Or set a default city: gust --default \"London\"")
+		os.Exit(1)
+	}
 
+	// Make API request to get weather data
 	if *forecastPtr {
-		weather, forecast, err := api.GetWeatherAndForecast(city.Lat, city.Lon, apiKey)
+		weather, forecast, err := getWeatherAndForecast(cfg.APIURL, authConfig.APIKey, cityName)
 		errhandler.CheckFatal(err, "Failed to get weather data")
-		displayWeather(city, weather, forecast, *forecastPtr)
+		displayWeather(weather.City, weather.Weather, forecast, *forecastPtr)
 	} else {
-		weather, err := api.GetCurrentWeather(city.Lat, city.Lon, apiKey)
+		weather, err := getCurrentWeather(cfg.APIURL, authConfig.APIKey, cityName)
 		errhandler.CheckFatal(err, "Failed to get weather data")
-		displayWeather(city, weather, nil, *forecastPtr)
+		displayWeather(weather.City, weather.Weather, nil, *forecastPtr)
 	}
 }
 
+// API response structure
+type WeatherResponse struct {
+	City    *models.City    `json:"city"`
+	Weather *models.Weather `json:"weather"`
+}
+
+type ForecastResponse struct {
+	City     *models.City          `json:"city"`
+	Forecast []models.ForecastItem `json:"forecast"`
+}
+
+// Get current weather from API
+func getCurrentWeather(apiURL, apiKey, cityName string) (*WeatherResponse, error) {
+	url := fmt.Sprintf("%s/api/weather/%s?api_key=%s",
+		apiURL, url.QueryEscape(cityName), apiKey)
+
+	resp, err := http.Get(url)
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to API: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("API error (%d): %s", resp.StatusCode, string(body))
+	}
+
+	var response WeatherResponse
+	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+		return nil, fmt.Errorf("failed to decode API response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// Get weather and forecast from API
+func getWeatherAndForecast(apiURL, apiKey, cityName string) (*WeatherResponse, []models.ForecastItem, error) {
+	// Get current weather
+	weather, err := getCurrentWeather(apiURL, apiKey, cityName)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Get forecast
+	url := fmt.Sprintf("%s/api/forecast/%s?api_key=%s",
+		apiURL, url.QueryEscape(cityName), apiKey)
+
+	resp, err := http.Get(url)
+	if err != nil {
+		return weather, nil, fmt.Errorf("failed to connect to API: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return weather, nil, fmt.Errorf("API error (%d): %s", resp.StatusCode, string(body))
+	}
+
+	var forecastResp ForecastResponse
+	if err := json.NewDecoder(resp.Body).Decode(&forecastResp); err != nil {
+		return weather, nil, fmt.Errorf("failed to decode API response: %w", err)
+	}
+
+	return weather, forecastResp.Forecast, nil
+}
+
+// The displayWeather function remains the same as in your original code
 func displayWeather(city *models.City, weather *models.Weather, forecast []models.ForecastItem, showForecast bool) {
 	// styled output funcs
 	headerStyle := color.New(color.FgHiCyan, color.Bold).SprintFunc()
 	tempStyle := color.New(color.FgHiYellow, color.Bold).SprintFunc()
 	highlightStyle := color.New(color.FgHiWhite).SprintFunc()
-	// subtleStyle := color.New(color.FgWhite).SprintFunc()
 	infoStyle := color.New(color.FgHiBlue).SprintFunc()
-	// errorStyle := color.New(color.FgHiRed, color.Bold).SprintFunc()
-	// successStyle := color.New(color.FgHiGreen, color.Bold).SprintFunc()
 
 	// header
 	fmt.Printf("\n%s\n", headerStyle(fmt.Sprintf("WEATHER FOR %s", strings.ToUpper(city.Name))))
@@ -183,19 +294,8 @@ func displayWeather(city *models.City, weather *models.Weather, forecast []model
 				tempStyle(fmt.Sprintf("%.1f°C", models.KelvinToCelsius(day.TempMax))),
 				"🌡️")
 
-			// Condition with emoji
-			// fmt.Printf("  Conditions: %s %s\n",
-			// 	day.Description,
-			// 	day.Emoji())
-
 			condition := fmt.Sprintf("%s %s", day.Description, day.Emoji())
-
 			fmt.Printf("  Conditions: %s\n", infoStyle(condition))
-			// // Show rain chance if > 0
-			// if day.Pop > 0 {
-			// 	fmt.Printf("  Rain Chance: %s\n",
-			// 		infoStyle(fmt.Sprintf("%.0f%%", day.Pop*100)))
-			// }
 		}
 		fmt.Println()
 	}

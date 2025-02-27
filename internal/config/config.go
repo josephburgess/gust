@@ -10,8 +10,8 @@ import (
 )
 
 type Config struct {
-	APIKey      string `json:"api_key"`
 	DefaultCity string `json:"default_city"`
+	APIURL      string `json:"api_url"`
 }
 
 type GetConfigPathFunc func() (string, error)
@@ -81,21 +81,11 @@ func (c *Config) Save() error {
 	return nil
 }
 
-// interactive prompt for first startup
 func PromptForConfiguration() (*Config, error) {
 	reader := bufio.NewReader(os.Stdin)
 	config := &Config{}
 
 	fmt.Println("Welcome to Gust! Let's set up your configuration.")
-
-	fmt.Println("\nYou'll need an OpenWeather API key.")
-	fmt.Println("You can get one at: https://home.openweathermap.org/api_keys")
-	fmt.Print("Enter your OpenWeather API key: ")
-	apiKey, err := reader.ReadString('\n')
-	if err != nil {
-		return nil, fmt.Errorf("error reading input: %w", err)
-	}
-	config.APIKey = strings.TrimSpace(apiKey)
 
 	fmt.Print("\nEnter your default city: ")
 	defaultCity, err := reader.ReadString('\n')
@@ -104,6 +94,11 @@ func PromptForConfiguration() (*Config, error) {
 	}
 	config.DefaultCity = strings.TrimSpace(defaultCity)
 
+	config.APIURL = "http://localhost:8080"
+
 	fmt.Println("\nConfiguration complete!")
+	fmt.Println("Note: You'll need to authenticate with GitHub to use Gust.")
+	fmt.Println("Run 'gust --login' after setup to authenticate.")
+
 	return config, nil
 }
