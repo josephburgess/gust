@@ -19,7 +19,6 @@ test-unit:
 test-integration:
 	$(GOTEST) ./... -run Integration
 
-
 test-unit-v:
 	$(GOTEST) -v ./... -short
 
@@ -43,8 +42,5 @@ uninstall:
 clean:
 	rm -f $(BINARY_NAME)
 	rm -f coverage.out
-
-setup-dev: clean build
-	./$(BINARY_NAME)
 
 all: clean lint test build

@@ -1,0 +1,53 @@
+package api
+
+import (
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"net/url"
+
+	"github.com/josephburgess/gust/internal/models"
+)
+
+type WeatherResponse struct {
+	City    *models.City            `json:"city"`
+	Weather *models.OneCallResponse `json:"weather"`
+}
+
+type Client struct {
+	baseURL string
+	apiKey  string
+	client  *http.Client
+}
+
+func NewClient(baseURL, apiKey string) *Client {
+	return &Client{
+		baseURL: baseURL,
+		apiKey:  apiKey,
+		client:  &http.Client{},
+	}
+}
+
+func (c *Client) GetWeather(cityName string) (*WeatherResponse, error) {
+	endpoint := fmt.Sprintf("%s/api/weather/%s?api_key=%s",
+		c.baseURL, url.QueryEscape(cityName), c.apiKey)
+
+	resp, err := c.client.Get(endpoint)
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to API: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("API error (%d): %s", resp.StatusCode, string(body))
+	}
+
+	var response WeatherResponse
+	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+		return nil, fmt.Errorf("failed to decode API response: %w", err)
+	}
+
+	return &response, nil
+}

@@ -21,6 +21,19 @@ type AuthConfig struct {
 	GithubUser string    `json:"github_user"`
 }
 
+type GetAuthConfigPathFunc func() (string, error)
+
+var GetAuthConfigPath GetAuthConfigPathFunc = defaultGetAuthConfigPath
+
+func defaultGetAuthConfigPath() (string, error) {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("could not get user home directory: %w", err)
+	}
+
+	return filepath.Join(homeDir, ".config", "gust", "auth.json"), nil
+}
+
 func Authenticate(serverURL string) (*AuthConfig, error) {
 	if serverURL == "" {
 		serverURL = "https://gust.ngrok.io"
@@ -30,7 +43,6 @@ func Authenticate(serverURL string) (*AuthConfig, error) {
 	errorChan := make(chan error)
 
 	port := 9876
-
 	server := &http.Server{Addr: fmt.Sprintf(":%d", port)}
 
 	http.HandleFunc("/callback", func(w http.ResponseWriter, r *http.Request) {
@@ -131,7 +143,7 @@ func getAuthURL(serverURL string, port int) (string, error) {
 func exchangeCodeForAPIKey(serverURL, code string, port int) (*AuthConfig, error) {
 	url := fmt.Sprintf("%s/api/auth/exchange", serverURL)
 
-	reqBody, err := json.Marshal(map[string]interface{}{
+	reqBody, err := json.Marshal(map[string]any{
 		"code":          code,
 		"callback_port": port,
 	})
@@ -175,7 +187,7 @@ func openBrowser(url string) error {
 		cmd = exec.Command("open", url)
 	case "windows":
 		cmd = exec.Command("rundll32", "url.dll,FileProtocolHandler", url)
-	default: // Linux and others
+	default:
 		cmd = exec.Command("xdg-open", url)
 	}
 
@@ -230,13 +242,4 @@ func LoadAuthConfig() (*AuthConfig, error) {
 	}
 
 	return &config, nil
-}
-
-func GetAuthConfigPath() (string, error) {
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return "", fmt.Errorf("could not get user home directory: %w", err)
-	}
-
-	return filepath.Join(homeDir, ".config", "gust", "auth.json"), nil
 }

@@ -2,8 +2,6 @@ package models
 
 import (
 	"fmt"
-	"math"
-	"time"
 )
 
 type City struct {
@@ -132,8 +130,6 @@ type Alert struct {
 	Tags        []string `json:"tags"`
 }
 
-// Helper functions (keep existing ones and add these)
-
 func KelvinToCelsius(k float64) float64 {
 	return k - 273.15
 }
@@ -159,20 +155,11 @@ func GetWeatherEmoji(id int) string {
 	}
 }
 
-func FormatTimestamp(timestamp int64) string {
-	t := time.Unix(timestamp, 0)
-	return t.Format("15:04")
-}
-
 func GetWindDirection(degrees int) string {
+	normalizedDegrees := ((degrees % 360) + 360) % 360
 	directions := []string{"N", "NE", "E", "SE", "S", "SW", "W", "NW"}
-	index := int((math.Mod(float64(degrees)+22.5, 360)) / 45)
+	index := int((float64(normalizedDegrees)+22.5)/45) % 8
 	return directions[index]
-}
-
-func FormatDay(timestamp int64) string {
-	t := time.Unix(timestamp, 0)
-	return t.Format("Mon Jan 2")
 }
 
 func VisibilityToString(meters int) string {
