@@ -17,12 +17,12 @@ func TestDivider(t *testing.T) {
 func TestFormatHeaderFunction(t *testing.T) {
 	result := FormatHeader("TEST TITLE")
 
-	if !strings.Contains(result, "TEST TITLE") {
-		t.Errorf("Expected header to contain the title, got %s", result)
+	if strings.Count(result, "\n") != 3 {
+		t.Errorf("Expected header to have 3 newlines, got %d", strings.Count(result, "\n"))
 	}
 
-	if !strings.HasPrefix(result, "\n") {
-		t.Errorf("Expected header to start with a newline, got %s", result)
+	if !strings.Contains(result, "TEST TITLE") {
+		t.Errorf("Expected header to contain the title, got %s", result)
 	}
 
 	if !strings.Contains(result, Divider()) {

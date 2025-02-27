@@ -28,5 +28,5 @@ func ExitWithError(message string, err error) {
 }
 
 func FormatHeader(title string) string {
-	return fmt.Sprintf("\n%s\n%s", HeaderStyle(title), Divider())
+	return fmt.Sprintf("\n%s\n%s\n", HeaderStyle(title), Divider())
 }
