@@ -1,6 +1,8 @@
 # gust
 Gust is a simple command-line weather tool I'm using to learn/play with Golang.
-
+<p align="center">
+<img src="https://github.com/user-attachments/assets/9aa70f5e-cfed-4265-a6ee-54f4e5f59ea8" width="400">
+</p>
 ## **Installation**
 
 ### **1. Clone the repository**
@@ -44,9 +46,6 @@ Run the command with a city name:
 ```sh
 gust london
 ```
-
-### **Example Output**
-<img src="https://github.com/user-attachments/assets/90ce75c0-6cba-40fa-9aae-16cd53064f52" width="400">
 
 ## **Testing**
 
