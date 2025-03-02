@@ -56,6 +56,8 @@ Simply run the command with a city name:
 gust london
 ```
 
+You can also set a default city then you just need to run `gust`.
+
 ### Optional Parameters
 
 ```
