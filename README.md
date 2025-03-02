@@ -74,7 +74,7 @@ gust --full london                   # Show full weather report including daily 
 
 ## Authentication
 
-Gust uses a proxy api, [breeze](http://github.com/josephburgess/breeze), to fetch weather data. This means you no longer need your own OpenWeather API key and can just authenticate with SSO using GitHub.
+Gust uses a proxy api, [breeze](http://github.com/josephburgess/breeze), to fetch weather data. This keeps the setup flow pretty frictionless for new users.
 
 When you first run Gust, it will:
 
