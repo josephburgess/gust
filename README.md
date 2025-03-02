@@ -1,60 +1,79 @@
 # gust
-Gust is a simple command-line weather tool I'm using to learn/play with Golang.
-<p align="center">
-<img src="https://github.com/user-attachments/assets/9aa70f5e-cfed-4265-a6ee-54f4e5f59ea8" width="400">
-</p>
-## **Installation**
 
-### **1. Clone the repository**
+A simple cli weather tool built with Go that provides weather forecasts in the terminal.
+
+<img src="https://github.com/user-attachments/assets/90ce75c0-6cba-40fa-9aae-16cd53064f52" width="400">
+
+## Installation
+
+### Option 1: Homebrew (macOS)
+
+The easiest way to install gust at the moment is with Homebrew:
+
+```sh
+brew tap josephburgess/tools
+brew install gust
+```
+
+### Option 2: Manual Installation
+
+#### 1. Clone the repository
 
 ```sh
 git clone https://github.com/josephburgess/gust.git
 cd gust
 ```
 
-### **2. Set up .env**
-
-gust uses openweather, you can get a key [here](https://home.openweathermap.org/api_keys), then create a `.env` with your key:
-```sh
-echo "OPENWEATHER_API_KEY=your_api_key_here" > .env
-```
-
-### **3. Install deps**
+#### 2. Install dependencies
 
 ```sh
 go mod tidy
 ```
 
-### **4. Build the binary**
+#### 3. Build the binary
 
 ```sh
 go build -o gust ./cmd/gust
 ```
 
-### **5. Install**
+#### 4. Install
 
-Move the binary to a dir in your `$PATH`:
+Move the binary to a directory in your `$PATH`:
 
 ```sh
 mv gust /usr/local/bin/
 ```
 
-## **Usage**
+## Usage
 
-Run the command with a city name:
+Simply run the command with a city name:
 
 ```sh
 gust london
 ```
 
-## **Testing**
+### Optional Parameters
 
-Run tests using:
-
-```sh
-go test ./...
+```
+gust --city london                   # Specify the name of a city other than your default
+gust --default london                # Set a new default city
+gust --login                         # Authenticate with GitHub
+gust --logout                        # Log out and remove authentication
+gust --api https://custom.api.server # Set custom API server URL if you're using breeze locally
+gust --daily london                  # Show daily forecast only
+gust --hourly london                 # Show hourly forecast only
+gust --alerts london                 # Show weather alerts only
+gust --full london                   # Show full weather report including daily and hourly forecasts (might be a lot to read!)
 ```
 
-## **License**
+## Authentication
 
-MIT License. Free to use and modify.
+Gust uses a proxy api, [breeze](http://github.com/josephburgess/breeze), to fetch weather data. This means you no longer need your own OpenWeather API key and can just authenticate with SSO using GitHub.
+
+When you first run Gust, it will:
+
+1. Prompt you to authenticate with GitHub
+2. Open your browser for the authentication process
+3. Automatically store your API key for future use
+
+After the initial setup, authentication is fully automatic and your API key will be securely stored locally.
