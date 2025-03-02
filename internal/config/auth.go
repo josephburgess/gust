@@ -67,7 +67,7 @@ func Authenticate(serverURL string) (*AuthConfig, error) {
 		w.WriteHeader(http.StatusOK)
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 
-		err = templates.RenderSuccessTemplate(w, apiConfig.GithubUser, apiConfig.APIKey)
+		err = templates.RenderSuccessTemplate(w, apiConfig.GithubUser, apiConfig.APIKey, serverURL)
 		if err != nil {
 			errorChan <- fmt.Errorf("failed to render success template: %w", err)
 			return
