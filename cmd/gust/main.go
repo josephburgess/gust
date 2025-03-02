@@ -108,7 +108,7 @@ func main() {
 		ui.ExitWithError("Failed to get weather data", err)
 	}
 
-	renderer := ui.NewRenderer()
+	renderer := ui.NewRenderer(cfg.Units)
 	if *alertsPtr {
 		renderer.DisplayAlerts(weather.City, weather.Weather)
 	} else if *hourlyPtr {

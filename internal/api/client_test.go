@@ -9,8 +9,9 @@ import (
 func TestNewClient(t *testing.T) {
 	baseURL := "https://example.com"
 	apiKey := "test-api-key"
+	units := "metric"
 
-	client := NewClient(baseURL, apiKey)
+	client := NewClient(baseURL, apiKey, units)
 
 	if client.baseURL != baseURL {
 		t.Errorf("Expected baseURL to be %s, got %s", baseURL, client.baseURL)
@@ -58,7 +59,7 @@ func TestGetWeather(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewClient(server.URL, "test-api-key")
+	client := NewClient(server.URL, "test-api-key", "metric")
 
 	resp, err := client.GetWeather("London")
 	if err != nil {
@@ -89,7 +90,7 @@ func TestGetWeatherError(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewClient(server.URL, "test-api-key")
+	client := NewClient(server.URL, "test-api-key", "metric")
 
 	resp, err := client.GetWeather("NonExistentCity")
 

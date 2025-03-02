@@ -9,10 +9,14 @@ import (
 	"github.com/josephburgess/gust/internal/models"
 )
 
-type Renderer struct{}
+type Renderer struct {
+	Units string
+}
 
-func NewRenderer() *Renderer {
-	return &Renderer{}
+func NewRenderer(units string) *Renderer {
+	return &Renderer{
+		Units: units,
+	}
 }
 
 func (r *Renderer) DisplayCurrentWeather(city *models.City, weather *models.OneCallResponse) {
@@ -26,7 +30,7 @@ func (r *Renderer) DisplayCurrentWeather(city *models.City, weather *models.OneC
 			HighlightStyle(weatherCond.Description),
 			models.GetWeatherEmoji(weatherCond.ID))
 
-		tempUnit := getTemperatureUnit(current.Temp)
+		tempUnit := r.getTemperatureUnit()
 
 		fmt.Printf("Temperature: %s %s (Feels like: %.1f%s)\n",
 			TempStyle(fmt.Sprintf("%.1f%s", current.Temp, tempUnit)),
@@ -38,13 +42,13 @@ func (r *Renderer) DisplayCurrentWeather(city *models.City, weather *models.OneC
 			fmt.Printf("UV Index: %.1f ☀️\n", current.UVI)
 		}
 
-		displayWindInfo(current.WindSpeed, current.WindDeg, current.WindGust)
+		r.displayWindInfo(current.WindSpeed, current.WindDeg, current.WindGust)
 
 		if current.Clouds > 0 {
 			fmt.Printf("Cloud coverage: %d%% ☁️\n", current.Clouds)
 		}
 
-		displayPrecipitation(current.Rain, current.Snow)
+		r.displayPrecipitation(current.Rain, current.Snow)
 		fmt.Printf("Visibility: %s\n", models.VisibilityToString(current.Visibility))
 
 		fmt.Printf("Sunrise: %s %s  Sunset: %s %s\n\n",
@@ -54,14 +58,14 @@ func (r *Renderer) DisplayCurrentWeather(city *models.City, weather *models.OneC
 			"🌇")
 	}
 
-	displayAlertSummary(weather.Alerts, city.Name)
+	r.displayAlertSummary(weather.Alerts, city.Name)
 }
 
 func (r *Renderer) DisplayDailyForecast(city *models.City, weather *models.OneCallResponse) {
 	fmt.Print(FormatHeader(fmt.Sprintf("7-DAY FORECAST FOR %s", strings.ToUpper(city.Name))))
 
 	if len(weather.Daily) > 0 {
-		tempUnit := getTemperatureUnit(weather.Daily[0].Temp.Day)
+		tempUnit := r.getTemperatureUnit()
 
 		for i, day := range weather.Daily {
 			if i >= 5 {
@@ -107,8 +111,8 @@ func (r *Renderer) DisplayDailyForecast(city *models.City, weather *models.OneCa
 				fmt.Printf("  Snow: %.1f mm ❄️\n", day.Snow)
 			}
 
-			windUnit := getWindSpeedUnit(day.WindSpeed)
-			windSpeed := formatWindSpeed(day.WindSpeed)
+			windUnit := r.getWindSpeedUnit()
+			windSpeed := r.formatWindSpeed(day.WindSpeed)
 
 			fmt.Printf("  Wind: %.1f %s %s\n",
 				windSpeed,
@@ -128,8 +132,7 @@ func (r *Renderer) DisplayHourlyForecast(city *models.City, weather *models.OneC
 		hourLimit := int(math.Min(24, float64(len(weather.Hourly))))
 		currentDay := ""
 
-		// Get temperature unit from the first hourly forecast
-		tempUnit := getTemperatureUnit(weather.Hourly[0].Temp)
+		tempUnit := r.getTemperatureUnit()
 
 		for i := 0; i < hourLimit; i++ {
 			hour := weather.Hourly[i]
@@ -213,12 +216,12 @@ func (r *Renderer) DisplayFullWeather(city *models.City, weather *models.OneCall
 	fmt.Println()
 }
 
-func displayWindInfo(speed float64, deg int, gust float64) {
-	windUnit := getWindSpeedUnit(speed)
-	windSpeed := formatWindSpeed(speed)
+func (r *Renderer) displayWindInfo(speed float64, deg int, gust float64) {
+	windUnit := r.getWindSpeedUnit()
+	windSpeed := r.formatWindSpeed(speed)
 
 	if gust > 0 {
-		gustSpeed := formatWindSpeed(gust)
+		gustSpeed := r.formatWindSpeed(gust)
 		fmt.Printf("Wind: %.1f %s %s %s (Gusts: %.1f %s)\n",
 			windSpeed,
 			windUnit,
@@ -235,7 +238,7 @@ func displayWindInfo(speed float64, deg int, gust float64) {
 	}
 }
 
-func displayPrecipitation(rain *models.RainData, snow *models.SnowData) {
+func (r *Renderer) displayPrecipitation(rain *models.RainData, snow *models.SnowData) {
 	if rain != nil && rain.OneHour > 0 {
 		fmt.Printf("Rain: %.1f mm (last hour) 🌧️\n", rain.OneHour)
 	}
@@ -245,7 +248,7 @@ func displayPrecipitation(rain *models.RainData, snow *models.SnowData) {
 	}
 }
 
-func displayAlertSummary(alerts []models.Alert, cityName string) {
+func (r *Renderer) displayAlertSummary(alerts []models.Alert, cityName string) {
 	if len(alerts) > 0 {
 		fmt.Printf("%s Use 'gust --alerts %s' to view them.\n",
 			AlertStyle(fmt.Sprintf("⚠️  There are %d weather alerts for this area.", len(alerts))),
@@ -253,27 +256,31 @@ func displayAlertSummary(alerts []models.Alert, cityName string) {
 	}
 }
 
-func getTemperatureUnit(temp float64) string {
-	if temp > 100 {
-		return "K" // Kelvin
-	} else if temp > 50 || temp < -50 {
-		return "°F" // Likely Fahrenheit
-	} else {
-		return "°C" // Celsius
+func (r *Renderer) getTemperatureUnit() string {
+	switch r.Units {
+	case "imperial":
+		return "°F"
+	case "metric":
+		return "°C"
+	default:
+		return "K"
 	}
 }
 
-func getWindSpeedUnit(speed float64) string {
-	if speed < 30 {
-		return "km/h"
-	} else {
+func (r *Renderer) getWindSpeedUnit() string {
+	switch r.Units {
+	case "imperial":
 		return "mph"
+	default:
+		return "km/h"
 	}
 }
 
-func formatWindSpeed(speed float64) float64 {
-	if speed < 30 {
+func (r *Renderer) formatWindSpeed(speed float64) float64 {
+	switch r.Units {
+	case "imperial":
+		return speed
+	default:
 		return speed * 3.6
 	}
-	return speed
 }
