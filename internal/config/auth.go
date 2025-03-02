@@ -12,6 +12,8 @@ import (
 	"path/filepath"
 	"runtime"
 	"time"
+
+	"github.com/josephburgess/gust/internal/templates"
 )
 
 type AuthConfig struct {
@@ -63,24 +65,13 @@ func Authenticate(serverURL string) (*AuthConfig, error) {
 		}
 
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`
-		<html>
-			<head>
-				<title>Gust Authentication Success</title>
-				<style>
-					body { font-family: system-ui, sans-serif; max-width: 600px; margin: 0 auto; padding: 2rem; text-align: center; }
-					h1 { color: #333; }
-					.success { color: #4CAF50; font-weight: bold; }
-					.info { margin: 2rem 0; line-height: 1.5; }
-				</style>
-			</head>
-			<body>
-				<h1>Authentication Successful!</h1>
-				<p class="success">You are now authenticated with Gust.</p>
-				<p class="info">You can close this window and return to your terminal.</p>
-			</body>
-		</html>
-		`))
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+
+		err = templates.RenderSuccessTemplate(w, apiConfig.GithubUser, apiConfig.APIKey)
+		if err != nil {
+			errorChan <- fmt.Errorf("failed to render success template: %w", err)
+			return
+		}
 
 		authDone <- apiConfig
 

@@ -19,7 +19,7 @@ var (
 )
 
 func Divider() string {
-	return strings.Repeat("─", 50)
+	return strings.Repeat("─", 25)
 }
 
 func ExitWithError(message string, err error) {
