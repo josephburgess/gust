@@ -18,20 +18,30 @@ type WeatherResponse struct {
 type Client struct {
 	baseURL string
 	apiKey  string
+	units   string
 	client  *http.Client
 }
 
-func NewClient(baseURL, apiKey string) *Client {
+func NewClient(baseURL, apiKey string, units string) *Client {
 	return &Client{
 		baseURL: baseURL,
 		apiKey:  apiKey,
+		units:   units,
 		client:  &http.Client{},
 	}
 }
 
 func (c *Client) GetWeather(cityName string) (*WeatherResponse, error) {
-	endpoint := fmt.Sprintf("%s/api/weather/%s?api_key=%s",
-		c.baseURL, url.QueryEscape(cityName), c.apiKey)
+	endpoint := fmt.Sprintf(
+		"%s/api/weather/%s?api_key=%s",
+		c.baseURL,
+		url.QueryEscape(cityName),
+		c.apiKey,
+	)
+
+	if c.units != "" {
+		endpoint = fmt.Sprintf("%s&units=%s", endpoint, c.units)
+	}
 
 	resp, err := c.client.Get(endpoint)
 	if err != nil {

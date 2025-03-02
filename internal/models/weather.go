@@ -130,10 +130,6 @@ type Alert struct {
 	Tags        []string `json:"tags"`
 }
 
-func KelvinToCelsius(k float64) float64 {
-	return k - 273.15
-}
-
 func GetWeatherEmoji(id int) string {
 	switch {
 	case id >= 200 && id <= 232:

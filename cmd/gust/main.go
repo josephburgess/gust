@@ -17,7 +17,7 @@ func main() {
 
 	// flags
 	cityPtr := flag.String("city", "", "Name of the city")
-	setDefaultCityPtr := flag.String("default", "", "Set a new default city")
+	defaulPtr := flag.String("default", "", "Set a new default city")
 	loginPtr := flag.Bool("login", false, "Authenticate with GitHub")
 	logoutPtr := flag.Bool("logout", false, "Log out and remove authentication")
 	apiURLPtr := flag.String("api", "", "Set custom API server URL")
@@ -25,6 +25,7 @@ func main() {
 	dailyPtr := flag.Bool("daily", false, "Show daily forecast only")
 	hourlyPtr := flag.Bool("hourly", false, "Show hourly forecast only")
 	alertsPtr := flag.Bool("alerts", false, "Show weather alerts only")
+	unitsPtr := flag.String("units", "", "Temperature units (metric, imperial, standard). Metric is default")
 	flag.Parse()
 
 	cfg, err := config.Load()
@@ -42,7 +43,7 @@ func main() {
 	}
 
 	if cfg.APIURL == "" {
-		cfg.APIURL = "https://gust.ngrok.io"
+		cfg.APIURL = "http://breeze.joeburgess.dev"
 		if err := cfg.Save(); err != nil {
 			ui.ExitWithError("Failed to save configuration", err)
 		}
@@ -58,12 +59,26 @@ func main() {
 		return
 	}
 
-	if *setDefaultCityPtr != "" {
-		cfg.DefaultCity = *setDefaultCityPtr
+	if *unitsPtr != "" {
+		if !isValidUnit(*unitsPtr) {
+			fmt.Println("Invalid units value. Must be one of: metric, imperial, standard")
+			os.Exit(1)
+		}
+
+		cfg.Units = *unitsPtr
+		if err := cfg.Save(); err != nil {
+			ui.ExitWithError("Failed to save config", err)
+		}
+		fmt.Printf("Units set to: %s\n", *unitsPtr)
+		return
+	}
+
+	if *defaulPtr != "" {
+		cfg.DefaultCity = *defaulPtr
 		if err := cfg.Save(); err != nil {
 			ui.ExitWithError("Failed to save configuration", err)
 		}
-		fmt.Printf("Default city set to: %s\n", *setDefaultCityPtr)
+		fmt.Printf("Default city set to: %s\n", *defaulPtr)
 		return
 	}
 
@@ -86,7 +101,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	client := api.NewClient(cfg.APIURL, authConfig.APIKey)
+	client := api.NewClient(cfg.APIURL, authConfig.APIKey, cfg.Units)
 
 	weather, err := client.GetWeather(cityName)
 	if err != nil {
@@ -150,4 +165,14 @@ func determineCityName(cityFlag string, args []string, defaultCity string) strin
 	}
 
 	return defaultCity
+}
+
+func isValidUnit(unit string) bool {
+	validUnits := map[string]bool{
+		"metric":   true,
+		"imperial": true,
+		"standard": true,
+	}
+
+	return validUnits[unit]
 }
