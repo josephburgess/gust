@@ -3,8 +3,10 @@
 A simple cli weather tool built with Go that provides weather forecasts in the terminal.
 
 <p align="center">
-<img src="https://github.com/user-attachments/assets/9cdd7230-6c12-4cd7-9101-60096fa653ba" width="600">
+<img src="https://github.com/user-attachments/assets/76695b8d-5e37-45a3-89cd-2d5b3401c323" width="600">
 </p>
+
+
 
 ## Installation
 
