@@ -32,7 +32,9 @@ func (r *Renderer) DisplayCurrentWeather(city *models.City, weather *models.OneC
 			models.KelvinToCelsius(current.FeelsLike))
 
 		fmt.Printf("Humidity: %d%% %s\n", current.Humidity, "💧")
-		fmt.Printf("UV Index: %.1f ☀️\n", current.UVI)
+		if current.UVI > 0 {
+			fmt.Printf("UV Index: %.1f ☀️\n", current.UVI)
+		}
 
 		displayWindInfo(current.WindSpeed, current.WindDeg, current.WindGust)
 
