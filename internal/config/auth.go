@@ -38,7 +38,7 @@ func defaultGetAuthConfigPath() (string, error) {
 
 func Authenticate(apiUrl string) (*AuthConfig, error) {
 	if apiUrl == "" {
-		apiUrl = "http://breeze.joeburgess.dev"
+		apiUrl = "https://breeze.joeburgess.dev"
 	}
 
 	authDone := make(chan *AuthConfig)

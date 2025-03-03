@@ -44,7 +44,7 @@ func main() {
 	}
 
 	if cfg.APIURL == "" {
-		cfg.APIURL = "http://breeze.joeburgess.dev"
+		cfg.APIURL = "https://breeze.joeburgess.dev"
 		if err := cfg.Save(); err != nil {
 			ui.ExitWithError("Failed to save configuration", err)
 		}
