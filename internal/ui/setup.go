@@ -63,178 +63,202 @@ func NewSetupModel(cfg *config.Config, needsAuth bool) setupModel {
 	}
 }
 
+// init
 func (m setupModel) Init() tea.Cmd {
 	return textinput.Blink
 }
 
+// update
 func (m setupModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	var cmd tea.Cmd
-
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		switch msg.String() {
-		case "ctrl+c", "q":
-			m.quitting = true
-			return m, tea.Quit
-
-		case "enter":
-			switch m.state {
-			case stateCity:
-				if m.cityInput.Value() != "" {
-					m.config.DefaultCity = m.cityInput.Value()
-					m.state = stateUnits
-				}
-				return m, nil
-
-			case stateUnits:
-				switch m.unitCursor {
-				case 0:
-					m.config.Units = "metric"
-				case 1:
-					m.config.Units = "imperial"
-				case 2:
-					m.config.Units = "standard"
-				}
-
-				if m.needsAuth {
-					m.state = stateAuth
-				} else {
-					m.state = stateComplete
-				}
-				return m, nil
-
-			case stateAuth:
-				// save config in case auth fails
-				if err := m.config.Save(); err != nil {
-					fmt.Println("Warning: Failed to save configuration before authentication.")
-				}
-
-				if m.authCursor == 0 {
-					// user chose to auth
-					return m, tea.Quit
-				} else {
-					// user skipped auth
-					m.state = stateComplete
-				}
-				return m, nil
-
-			case stateComplete:
-				return m, tea.Quit
-			}
-
-		case "up", "k":
-			switch m.state {
-			case stateUnits:
-				if m.unitCursor > 0 {
-					m.unitCursor--
-				}
-			case stateAuth:
-				if m.authCursor > 0 {
-					m.authCursor--
-				}
-			}
-
-		case "down", "j":
-			switch m.state {
-			case stateUnits:
-				if m.unitCursor < len(m.unitOptions)-1 {
-					m.unitCursor++
-				}
-			case stateAuth:
-				if m.authCursor < len(m.authOptions)-1 {
-					m.authCursor++
-				}
-			}
+		if m.state == stateCity {
+			return m.handleTextInput(msg)
 		}
-
+		return m.handleKeyPress(msg)
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
-
 	case setupCompleteMsg:
 		m.state = stateComplete
 		return m, nil
 	}
 
-	if m.state == stateCity {
-		m.cityInput, cmd = m.cityInput.Update(msg)
-		return m, cmd
+	return m, nil
+}
+
+// view
+func (m setupModel) View() string {
+	content := m.buildContent()
+	return m.centerContent(content)
+}
+
+func (m setupModel) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "ctrl+c":
+		m.quitting = true
+		return m, tea.Quit
+	case "enter":
+		return m.handleEnterKey()
+	case "up", "k":
+		return m.handleUpKey()
+	case "down", "j":
+		return m.handleDownKey()
+	}
+	return m, nil
+}
+
+func (m setupModel) handleEnterKey() (tea.Model, tea.Cmd) {
+	switch m.state {
+	case stateCity:
+		if m.cityInput.Value() != "" {
+			m.config.DefaultCity = m.cityInput.Value()
+			m.state = stateUnits
+		}
+
+	case stateUnits:
+		unitValues := []string{"metric", "imperial", "standard"}
+		m.config.Units = unitValues[m.unitCursor]
+
+		if m.needsAuth {
+			m.state = stateAuth
+		} else {
+			m.state = stateComplete
+		}
+
+	case stateAuth:
+		// save config in case auth fails
+		if err := m.config.Save(); err != nil {
+			fmt.Println("Warning: Failed to save configuration before authentication.")
+		}
+
+		if m.authCursor == 0 {
+			// user chose to auth
+			return m, tea.Quit
+		} else {
+			// user skipped auth
+			m.state = stateComplete
+		}
+
+	case stateComplete:
+		return m, tea.Quit
 	}
 
 	return m, nil
 }
 
-func (m setupModel) View() string {
+func (m setupModel) handleUpKey() (tea.Model, tea.Cmd) {
+	switch m.state {
+	case stateUnits:
+		if m.unitCursor > 0 {
+			m.unitCursor--
+		}
+	case stateAuth:
+		if m.authCursor > 0 {
+			m.authCursor--
+		}
+	}
+	return m, nil
+}
+
+func (m setupModel) handleDownKey() (tea.Model, tea.Cmd) {
+	switch m.state {
+	case stateUnits:
+		if m.unitCursor < len(m.unitOptions)-1 {
+			m.unitCursor++
+		}
+	case stateAuth:
+		if m.authCursor < len(m.authOptions)-1 {
+			m.authCursor++
+		}
+	}
+	return m, nil
+}
+
+func (m setupModel) handleTextInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "ctrl+c":
+		m.quitting = true
+		return m, tea.Quit
+	case "enter":
+		if m.cityInput.Value() != "" {
+			m.config.DefaultCity = m.cityInput.Value()
+			m.state = stateUnits
+		}
+		return m, nil
+	}
+
+	var cmd tea.Cmd
+	m.cityInput, cmd = m.cityInput.Update(msg)
+	return m, cmd
+}
+
+func (m setupModel) buildContent() string {
 	var sb strings.Builder
 
-	// build content
-	var content strings.Builder
-
-	// render logo/header
-	content.WriteString(titleStyle.Render(asciiLogo) + "\n\n")
-	content.WriteString(boxStyle.Render(subtitleStyle.Render("Simple terminal weather 🌤️")) + "\n\n")
+	sb.WriteString(titleStyle.Render(asciiLogo) + "\n\n")
+	sb.WriteString(boxStyle.Render(subtitleStyle.Render("Simple terminal weather 🌤️")) + "\n\n")
 
 	switch m.state {
 	case stateCity:
-		content.WriteString(highlightStyle.Render("Enter a default city 🏙️") + "\n\n")
-		content.WriteString(m.cityInput.View() + "\n\n")
-		content.WriteString(hintStyle.Render("Press Enter to continue"))
+		sb.WriteString(highlightStyle.Render("Enter a default city 🏙️") + "\n\n")
+		sb.WriteString(m.cityInput.View() + "\n\n")
+		sb.WriteString(hintStyle.Render("Press Enter to continue"))
 
 	case stateUnits:
-		content.WriteString(highlightStyle.Render("Choose your preferred units: 🌡️") + "\n\n")
-		for i, option := range m.unitOptions {
-			var line string
-			if m.unitCursor == i {
-				cursor := cursorStyle.Render("→")
-				line = fmt.Sprintf("%s %s", cursor, selectedItemStyle.Render(option))
-			} else {
-				line = fmt.Sprintf("  %s", option)
-			}
-			content.WriteString(line + "\n")
-		}
-		content.WriteString("\n" + hintStyle.Render("Press Enter to confirm"))
+		sb.WriteString(highlightStyle.Render("Choose your preferred units: 🌡️") + "\n\n")
+		sb.WriteString(m.renderOptions(m.unitOptions, m.unitCursor))
+		sb.WriteString("\n" + hintStyle.Render("Press Enter to confirm"))
 
 	case stateAuth:
-		content.WriteString(highlightStyle.Render("GitHub Auth 🔒") + "\n\n")
-		content.WriteString("To get weather data you need to authenticate with GitHub (don't worry, no permissions requested!).\n\n")
-
-		for i, option := range m.authOptions {
-			var line string
-			if m.authCursor == i {
-				cursor := cursorStyle.Render("→")
-				line = fmt.Sprintf("%s %s", cursor, selectedItemStyle.Render(option))
-			} else {
-				line = fmt.Sprintf("  %s", option)
-			}
-			content.WriteString(line + "\n")
-		}
-		content.WriteString("\n" + hintStyle.Render("Press Enter to confirm your selection"))
+		sb.WriteString(highlightStyle.Render("GitHub Auth 🔒") + "\n\n")
+		sb.WriteString("To get weather data you need to authenticate with GitHub (don't worry, no permissions requested!).\n\n")
+		sb.WriteString(m.renderOptions(m.authOptions, m.authCursor))
+		sb.WriteString("\n" + hintStyle.Render("Press Enter to confirm your selection"))
 
 	case stateComplete:
-		content.WriteString(highlightStyle.Render("✓ Setup complete! 🎉") + "\n\n")
-		content.WriteString(fmt.Sprintf("Default city: %s 🏙️\n", m.config.DefaultCity))
-		content.WriteString(fmt.Sprintf("Units: %s 🌡️\n", m.config.Units))
+		sb.WriteString(highlightStyle.Render("✓ Setup complete! 🎉") + "\n\n")
+		sb.WriteString(fmt.Sprintf("Default city: %s 🏙️\n", m.config.DefaultCity))
+		sb.WriteString(fmt.Sprintf("Units: %s 🌡️\n", m.config.Units))
 
 		if m.needsAuth {
 			authStatus := "Authenticated ✅"
 			if m.authCursor == 1 {
 				authStatus = "Not authenticated ❌"
 			}
-			content.WriteString(fmt.Sprintf("GitHub: %s\n", authStatus))
+			sb.WriteString(fmt.Sprintf("GitHub: %s\n", authStatus))
 		}
 
-		content.WriteString("\n" + hintStyle.Render("Press any key to continue"))
+		sb.WriteString("\n" + hintStyle.Render("Press any key to continue"))
 	}
 
 	// footer
-	footerHelp := "\n" + hintStyle.Render("↑/↓: Navigate • Enter: Select • q: Quit")
-	content.WriteString(footerHelp)
+	sb.WriteString("\n" + hintStyle.Render("↑/↓: Navigate • Enter: Select • Ctrl + C: Quit"))
 
-	// attempt to center content
-	contentStr := content.String()
-	lines := strings.Split(contentStr, "\n")
+	return sb.String()
+}
 
-	// only if we have window dimensions!!
+func (m setupModel) renderOptions(options []string, cursor int) string {
+	var sb strings.Builder
+
+	for i, option := range options {
+		var line string
+		if cursor == i {
+			line = fmt.Sprintf("%s %s", cursorStyle.Render("→"), selectedItemStyle.Render(option))
+		} else {
+			line = fmt.Sprintf("  %s", option)
+		}
+		sb.WriteString(line + "\n")
+	}
+
+	return sb.String()
+}
+
+func (m setupModel) centerContent(content string) string {
+	var sb strings.Builder
+	lines := strings.Split(content, "\n")
+
+	// only try to center if we have dimensions
 	if m.width > 0 && m.height > 0 {
 		// vert
 		contentHeight := len(lines)
@@ -255,8 +279,8 @@ func (m setupModel) View() string {
 			sb.WriteString(line + "\n")
 		}
 	} else {
-		// otherwise just render without centring
-		sb.WriteString(contentStr)
+		// else just render
+		sb.WriteString(content)
 	}
 
 	return sb.String()
@@ -287,17 +311,17 @@ func RunSetup(cfg *config.Config, needsAuth bool) error {
 		return fmt.Errorf("unexpected model type: %T", finalModel)
 	}
 
-	// don't save if user was just quitting with 'q'
+	// dont save if quit with q
 	if finalSetupModel.quitting {
 		return nil
 	}
 
-	// save the configuration if it wasn't saved earlier
+	// save config if not saved earlier
 	if err := finalSetupModel.config.Save(); err != nil {
 		return fmt.Errorf("failed to save configuration: %w", err)
 	}
 
-	// handle authentication if it was chosen and state shows auth
+	// handle auth if chosen
 	if finalSetupModel.state == stateAuth && finalSetupModel.authCursor == 0 {
 		fmt.Println("Starting GitHub authentication...")
 
