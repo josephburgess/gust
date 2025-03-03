@@ -7,7 +7,7 @@ import (
 
 func TestDivider(t *testing.T) {
 	divider := Divider()
-	expected := strings.Repeat("─", 50)
+	expected := strings.Repeat("─", 35)
 
 	if divider != expected {
 		t.Errorf("Divider didn't return the expected string")

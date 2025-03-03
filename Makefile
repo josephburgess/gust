@@ -43,4 +43,6 @@ clean:
 	rm -f $(BINARY_NAME)
 	rm -f coverage.out
 
+build-test: build test
+
 all: clean lint test build

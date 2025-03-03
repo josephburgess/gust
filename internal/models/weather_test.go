@@ -5,25 +5,6 @@ import (
 	"testing"
 )
 
-func TestKelvinToCelsius(t *testing.T) {
-	tests := []struct {
-		kelvin   float64
-		expected float64
-	}{
-		{273.15, 0.0},
-		{283.15, 10.0},
-		{293.15, 20.0},
-		{0, -273.15},
-	}
-
-	for _, test := range tests {
-		result := KelvinToCelsius(test.kelvin)
-		if result != test.expected {
-			t.Errorf("KelvinToCelsius(%f) = %f, expected %f", test.kelvin, result, test.expected)
-		}
-	}
-}
-
 func TestGetWeatherEmoji(t *testing.T) {
 	tests := []struct {
 		id       int

@@ -12,7 +12,7 @@ import (
 )
 
 func TestNewRenderer(t *testing.T) {
-	renderer := NewRenderer()
+	renderer := NewRenderer("")
 	if renderer == nil {
 		t.Fatal("NewRenderer() should return a non-nil renderer")
 	}
@@ -35,8 +35,8 @@ func TestDisplayCurrentWeather(t *testing.T) {
 	weather := &models.OneCallResponse{
 		Current: models.CurrentWeather{
 			Dt:         time.Now().Unix(),
-			Temp:       283.15, // 10°C
-			FeelsLike:  281.15, // 8°C
+			Temp:       10,
+			FeelsLike:  8,
 			Humidity:   65,
 			UVI:        2.5,
 			WindSpeed:  5.1,
@@ -55,7 +55,7 @@ func TestDisplayCurrentWeather(t *testing.T) {
 		},
 	}
 
-	renderer := NewRenderer()
+	renderer := NewRenderer("metric")
 	renderer.DisplayCurrentWeather(city, weather)
 
 	w.Close()
@@ -99,7 +99,7 @@ func TestDisplayAlerts(t *testing.T) {
 		},
 	}
 
-	renderer := NewRenderer()
+	renderer := NewRenderer("")
 	renderer.DisplayAlerts(city, weather)
 
 	w.Close()
@@ -134,7 +134,7 @@ func TestDisplayAlertsNoAlerts(t *testing.T) {
 		Alerts: []models.Alert{},
 	}
 
-	renderer := NewRenderer()
+	renderer := NewRenderer("")
 	renderer.DisplayAlerts(city, weather)
 
 	w.Close()

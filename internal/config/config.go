@@ -10,6 +10,7 @@ import (
 type Config struct {
 	DefaultCity string `json:"default_city"`
 	APIURL      string `json:"api_url"`
+	Units       string `json:"units"`
 }
 
 type GetConfigPathFunc func() (string, error)
@@ -38,7 +39,7 @@ func Load() (*Config, error) {
 	}
 
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
-		return &Config{}, nil
+		return &Config{Units: "metric"}, nil
 	}
 
 	file, err := os.Open(configPath)
@@ -50,6 +51,10 @@ func Load() (*Config, error) {
 	var config Config
 	if err := json.NewDecoder(file).Decode(&config); err != nil {
 		return nil, fmt.Errorf("could not decode config file: %w", err)
+	}
+
+	if config.Units == "" {
+		config.Units = "metric"
 	}
 
 	return &config, nil

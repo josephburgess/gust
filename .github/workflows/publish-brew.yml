@@ -1,0 +1,23 @@
+name: publish brew formula
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  homebrew-releaser:
+    runs-on: ubuntu-latest
+    name: homebrew-releaser
+    steps:
+      - name: Release project to Homebrew tap
+        uses: Justintime50/homebrew-releaser@v2
+        with:
+          homebrew_owner: josephburgess
+          homebrew_tap: homebrew-formulae
+          formula_folder: .
+          github_token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          commit_owner: josephburgess
+          commit_email: hello@joeburgess.dev
+          install: 'system "go", "build", *std_go_args(ldflags: "-s -w"), "./cmd/gust"'
+          test: 'assert_match "Gust Weather", shell_output("#{bin}/gust -h", 2)'
+          depends_on: '"go" => :build'
