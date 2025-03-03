@@ -20,6 +20,7 @@ func main() {
 	defaulPtr := flag.String("default", "", "Set a new default city")
 	loginPtr := flag.Bool("login", false, "Authenticate with GitHub")
 	apiURLPtr := flag.String("api", "", "Set custom API server URL")
+	detailedPtr := flag.Bool("detailed", false, "Show default detailed weather view")
 	fullPtr := flag.Bool("full", false, "Show full weather report including daily and hourly forecasts")
 	dailyPtr := flag.Bool("daily", false, "Show daily forecast only")
 	hourlyPtr := flag.Bool("hourly", false, "Show hourly forecast only")
@@ -27,6 +28,8 @@ func main() {
 	unitsPtr := flag.String("units", "", "Temperature units (metric, imperial, standard). Metric is default")
 	setupPtr := flag.Bool("setup", false, "Run the setup wizard")
 	prettyPtr := flag.Bool("pretty", false, "Use the pretty UI - tbc")
+	compactPtr := flag.Bool("compact", false, "Show compact weather view")
+
 	flag.Parse()
 
 	cfg, err := config.Load()
@@ -138,8 +141,24 @@ func main() {
 		renderer.DisplayDailyForecast(weather.City, weather.Weather)
 	} else if *fullPtr {
 		renderer.DisplayFullWeather(weather.City, weather.Weather)
+	} else if *compactPtr {
+		renderer.DisplayCompactWeather(weather.City, weather.Weather)
+	} else if *detailedPtr {
+		renderer.DisplayDefaultWeather(weather.City, weather.Weather)
 	} else {
-		renderer.DisplayCurrentWeather(weather.City, weather.Weather)
+		// Use the default view from config
+		switch cfg.DefaultView {
+		case "compact":
+			renderer.DisplayCompactWeather(weather.City, weather.Weather)
+		case "daily":
+			renderer.DisplayDailyForecast(weather.City, weather.Weather)
+		case "hourly":
+			renderer.DisplayHourlyForecast(weather.City, weather.Weather)
+		case "full":
+			renderer.DisplayFullWeather(weather.City, weather.Weather)
+		case "default", "":
+			renderer.DisplayDefaultWeather(weather.City, weather.Weather)
+		}
 	}
 }
 

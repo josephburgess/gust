@@ -6,7 +6,7 @@ import (
 )
 
 func TestDivider(t *testing.T) {
-	divider := Divider()
+	divider := Divider(30)
 	expected := strings.Repeat("─", 35)
 
 	if divider != expected {
@@ -25,7 +25,7 @@ func TestFormatHeaderFunction(t *testing.T) {
 		t.Errorf("Expected header to contain the title, got %s", result)
 	}
 
-	if !strings.Contains(result, Divider()) {
+	if !strings.Contains(result, Divider(30)) {
 		t.Errorf("Expected header to contain a divider, got %s", result)
 	}
 }

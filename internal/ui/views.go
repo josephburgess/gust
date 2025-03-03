@@ -19,7 +19,7 @@ func NewRenderer(units string) *Renderer {
 	}
 }
 
-func (r *Renderer) DisplayCurrentWeather(city *models.City, weather *models.OneCallResponse) {
+func (r *Renderer) DisplayDefaultWeather(city *models.City, weather *models.OneCallResponse) {
 	current := weather.Current
 
 	fmt.Print(FormatHeader(fmt.Sprintf("WEATHER FOR %s", strings.ToUpper(city.Name))))
@@ -32,7 +32,7 @@ func (r *Renderer) DisplayCurrentWeather(city *models.City, weather *models.OneC
 
 		tempUnit := r.getTemperatureUnit()
 
-		fmt.Printf("Temperature: %s %s (Feels like: %.1f%s)\n",
+		fmt.Printf("Temperature: %s %s (F/L: %.1f%s)\n",
 			TempStyle(fmt.Sprintf("%.1f%s", current.Temp, tempUnit)),
 			"🌡️",
 			current.FeelsLike, tempUnit)
@@ -62,7 +62,7 @@ func (r *Renderer) DisplayCurrentWeather(city *models.City, weather *models.OneC
 }
 
 func (r *Renderer) DisplayDailyForecast(city *models.City, weather *models.OneCallResponse) {
-	fmt.Print(FormatHeader(fmt.Sprintf("7-DAY FORECAST FOR %s", strings.ToUpper(city.Name))))
+	fmt.Print(FormatHeader(fmt.Sprintf("5-DAY FORECAST FOR %s", strings.ToUpper(city.Name))))
 
 	if len(weather.Daily) > 0 {
 		tempUnit := r.getTemperatureUnit()
@@ -126,7 +126,7 @@ func (r *Renderer) DisplayDailyForecast(city *models.City, weather *models.OneCa
 }
 
 func (r *Renderer) DisplayHourlyForecast(city *models.City, weather *models.OneCallResponse) {
-	fmt.Print(FormatHeader(fmt.Sprintf("HOURLY FORECAST FOR %s", strings.ToUpper(city.Name))))
+	fmt.Print(FormatHeader(fmt.Sprintf("24H FORECAST FOR %s", strings.ToUpper(city.Name))))
 
 	if len(weather.Hourly) > 0 {
 		hourLimit := int(math.Min(24, float64(len(weather.Hourly))))
@@ -160,9 +160,14 @@ func (r *Renderer) DisplayHourlyForecast(city *models.City, weather *models.OneC
 				popStr = fmt.Sprintf(" (%.0f%% chance of precipitation)", hour.Pop*100)
 			}
 
-			fmt.Printf("  %s: %s %s  %s%s\n",
+			extraSpace := ""
+			if hour.Temp < 10 {
+				extraSpace = " "
+			}
+			fmt.Printf("  %s:   %s  %s%s  %s%s\n",
 				hourStr,
 				temp,
+				extraSpace,
 				models.GetWeatherEmoji(weatherCond.ID),
 				InfoStyle(weatherCond.Description),
 				popStr)
@@ -189,7 +194,7 @@ func (r *Renderer) DisplayAlerts(city *models.City, weather *models.OneCallRespo
 
 	for i, alert := range weather.Alerts {
 		if i > 0 {
-			fmt.Println(Divider())
+			fmt.Println(Divider(30))
 		}
 
 		fmt.Printf("%s\n", AlertStyle(fmt.Sprintf("⚠️  %s", alert.Event)))
@@ -204,7 +209,7 @@ func (r *Renderer) DisplayAlerts(city *models.City, weather *models.OneCallRespo
 }
 
 func (r *Renderer) DisplayFullWeather(city *models.City, weather *models.OneCallResponse) {
-	r.DisplayCurrentWeather(city, weather)
+	r.DisplayDefaultWeather(city, weather)
 	fmt.Println()
 
 	if len(weather.Alerts) > 0 {
@@ -282,5 +287,53 @@ func (r *Renderer) formatWindSpeed(speed float64) float64 {
 		return speed
 	default:
 		return speed * 3.6
+	}
+}
+
+func (r *Renderer) DisplayCompactWeather(city *models.City, weather *models.OneCallResponse) {
+	current := weather.Current
+
+	fmt.Print(FormatHeader(fmt.Sprintf("%s WEATHER", strings.ToUpper(city.Name))))
+
+	if len(current.Weather) > 0 {
+		weatherCond := current.Weather[0]
+		tempUnit := r.getTemperatureUnit()
+		emoji := models.GetWeatherEmoji(weatherCond.ID)
+		temp := TempStyle(fmt.Sprintf("%.1f%s", current.Temp, tempUnit))
+		feels := fmt.Sprintf("(%.1f%s)", current.FeelsLike, tempUnit)
+
+		fmt.Printf("%s %-16s    %s %s\n",
+			emoji,
+			HighlightStyle(weatherCond.Description),
+			temp,
+			feels)
+
+		windUnit := r.getWindSpeedUnit()
+		windSpeed := r.formatWindSpeed(current.WindSpeed)
+		windDir := models.GetWindDirection(current.WindDeg)
+
+		fmt.Printf("💧 %-3d%%         💨 %-4.1f %-3s %-2s",
+			current.Humidity,
+			windSpeed,
+			windUnit,
+			windDir)
+
+		if current.Rain != nil && current.Rain.OneHour > 0 {
+			fmt.Printf("     🌧️ %.1f mm", current.Rain.OneHour)
+		}
+		if current.Snow != nil && current.Snow.OneHour > 0 {
+			fmt.Printf("     ❄️ %.1f mm", current.Snow.OneHour)
+		}
+		fmt.Println()
+
+		sunrise := time.Unix(current.Sunrise, 0).Format("15:04")
+		sunset := time.Unix(current.Sunset, 0).Format("15:04")
+		fmt.Printf("🌅 %-8s     🌇 %-8s", sunrise, sunset)
+
+		if len(weather.Alerts) > 0 {
+			fmt.Printf("     %s",
+				AlertStyle(fmt.Sprintf("⚠️ %d alerts", len(weather.Alerts))))
+		}
+		fmt.Println()
 	}
 }

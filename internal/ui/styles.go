@@ -58,8 +58,8 @@ var (
 	AlertStyle     = color.New(color.FgHiRed, color.Bold).SprintFunc()
 )
 
-func Divider() string {
-	return strings.Repeat("─", 35)
+func Divider(len int) string {
+	return strings.Repeat("─", len)
 }
 
 func ExitWithError(message string, err error) {
@@ -68,5 +68,5 @@ func ExitWithError(message string, err error) {
 }
 
 func FormatHeader(title string) string {
-	return fmt.Sprintf("\n%s\n%s\n", HeaderStyle(title), Divider())
+	return fmt.Sprintf("\n%s\n%s\n", HeaderStyle(title), Divider(len(title)*2))
 }

@@ -56,7 +56,7 @@ func TestDisplayCurrentWeather(t *testing.T) {
 	}
 
 	renderer := NewRenderer("metric")
-	renderer.DisplayCurrentWeather(city, weather)
+	renderer.DisplayDefaultWeather(city, weather)
 
 	w.Close()
 	var buf bytes.Buffer
@@ -155,7 +155,7 @@ func TestFormatHeader(t *testing.T) {
 		t.Errorf("Header doesn't contain title: %s", header)
 	}
 
-	if !strings.Contains(header, Divider()) {
+	if !strings.Contains(header, Divider(30)) {
 		t.Errorf("Header doesn't contain divider: %s", header)
 	}
 }

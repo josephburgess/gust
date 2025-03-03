@@ -15,6 +15,7 @@ type setupState int
 const (
 	stateCity setupState = iota
 	stateUnits
+	stateView
 	stateAuth
 	stateComplete
 )
@@ -33,6 +34,8 @@ type setupModel struct {
 	cityInput     textinput.Model
 	unitOptions   []string
 	unitCursor    int
+	viewOptions   []string
+	viewCursor    int
 	authOptions   []string
 	authCursor    int
 	needsAuth     bool
@@ -50,12 +53,40 @@ func NewSetupModel(cfg *config.Config, needsAuth bool) setupModel {
 	ti.TextStyle = lipgloss.NewStyle().Foreground(text)
 	ti.Cursor.Style = lipgloss.NewStyle().Foreground(gold)
 
+	unitCursor := 0
+	switch cfg.Units {
+	case "imperial":
+		unitCursor = 1
+	case "standard":
+		unitCursor = 2
+	}
+
+	viewCursor := 0
+	switch cfg.DefaultView {
+	case "compact":
+		viewCursor = 1
+	case "daily":
+		viewCursor = 2
+	case "hourly":
+		viewCursor = 3
+	case "full":
+		viewCursor = 4
+	}
+
 	return setupModel{
 		config:      cfg,
 		state:       stateCity,
 		cityInput:   ti,
 		unitOptions: []string{"metric (°C, km/h) 🌡️", "imperial (°F, mph) 🌡️", "standard (K, m/s) 🌡️"},
-		unitCursor:  0, // Default to metric
+		unitCursor:  unitCursor,
+		viewOptions: []string{
+			"detailed 🌤️",
+			"compact 📊",
+			"daily (5-day) 📆",
+			"hourly (24-hour forecast) 🕒",
+			"full (current + daily + alerts) 📋",
+		},
+		viewCursor:  viewCursor,
 		authOptions: []string{"Yes, authenticate with GitHub 🔑", "No, I'll do it later ⏱️"},
 		authCursor:  0,
 		needsAuth:   needsAuth,
@@ -119,6 +150,11 @@ func (m setupModel) handleEnterKey() (tea.Model, tea.Cmd) {
 	case stateUnits:
 		unitValues := []string{"metric", "imperial", "standard"}
 		m.config.Units = unitValues[m.unitCursor]
+		m.state = stateView
+
+	case stateView:
+		viewValues := []string{"default", "compact", "daily", "hourly", "full"}
+		m.config.DefaultView = viewValues[m.viewCursor]
 
 		if m.needsAuth {
 			m.state = stateAuth
@@ -153,6 +189,10 @@ func (m setupModel) handleUpKey() (tea.Model, tea.Cmd) {
 		if m.unitCursor > 0 {
 			m.unitCursor--
 		}
+	case stateView:
+		if m.viewCursor > 0 {
+			m.viewCursor--
+		}
 	case stateAuth:
 		if m.authCursor > 0 {
 			m.authCursor--
@@ -166,6 +206,10 @@ func (m setupModel) handleDownKey() (tea.Model, tea.Cmd) {
 	case stateUnits:
 		if m.unitCursor < len(m.unitOptions)-1 {
 			m.unitCursor++
+		}
+	case stateView:
+		if m.viewCursor < len(m.viewOptions)-1 {
+			m.viewCursor++
 		}
 	case stateAuth:
 		if m.authCursor < len(m.authOptions)-1 {
@@ -210,6 +254,11 @@ func (m setupModel) buildContent() string {
 		sb.WriteString(m.renderOptions(m.unitOptions, m.unitCursor))
 		sb.WriteString("\n" + hintStyle.Render("Press Enter to confirm"))
 
+	case stateView:
+		sb.WriteString(highlightStyle.Render("Choose your preferred view: 📊") + "\n\n")
+		sb.WriteString(m.renderOptions(m.viewOptions, m.viewCursor))
+		sb.WriteString("\n" + hintStyle.Render("Press Enter to confirm"))
+
 	case stateAuth:
 		sb.WriteString(highlightStyle.Render("GitHub Auth 🔒") + "\n\n")
 		sb.WriteString("To get weather data you need to authenticate with GitHub (don't worry, no permissions requested!).\n\n")
@@ -220,6 +269,7 @@ func (m setupModel) buildContent() string {
 		sb.WriteString(highlightStyle.Render("✓ Setup complete! 🎉") + "\n\n")
 		sb.WriteString(fmt.Sprintf("Default city: %s 🏙️\n", m.config.DefaultCity))
 		sb.WriteString(fmt.Sprintf("Units: %s 🌡️\n", m.config.Units))
+		sb.WriteString(fmt.Sprintf("Default view: %s 📊\n", m.config.DefaultView))
 
 		if m.needsAuth {
 			authStatus := "Authenticated ✅"
