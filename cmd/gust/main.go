@@ -144,20 +144,20 @@ func main() {
 }
 
 func handleLogin(apiURL string) {
-	fmt.println("starting github authentication...")
-	authconfig, err := config.authenticate(apiurl)
+	fmt.Println("Starting GitHub authentication...")
+	authConfig, err := config.Authenticate(apiURL)
 	if err != nil {
-		ui.exitwitherror("authentication failed", err)
+		ui.ExitWithError("Authentication failed", err)
 	}
 
-	if err := config.saveauthconfig(authconfig); err != nil {
-		ui.exitwitherror("failed to save authentication", err)
+	if err := config.SaveAuthConfig(authConfig); err != nil {
+		ui.ExitWithError("Failed to save authentication", err)
 	}
 
-	fmt.printf("successfully authenticated as %s\n", authconfig.githubuser)
+	fmt.Printf("Successfully authenticated as %s\n", authConfig.GithubUser)
 }
 
-func determinecityname(cityflag string, args []string, defaultcity string) string {
+func determineCityName(cityFlag string, args []string, defaultCity string) string {
 	if cityFlag != "" {
 		return cityFlag
 	}

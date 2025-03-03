@@ -19,41 +19,12 @@ const (
 	stateComplete
 )
 
-// Styling
-var (
-	titleStyle = lipgloss.NewStyle().
-			Bold(true).
-			Foreground(lipgloss.Color("#7D56F4"))
-
-	subtitleStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#FFDBA5"))
-
-	highlightStyle = lipgloss.NewStyle().
-			Bold(true).
-			Foreground(lipgloss.Color("#F1FA8C"))
-
-	cursorStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#FF79C6"))
-
-	selectedItemStyle = lipgloss.NewStyle().
-				Foreground(lipgloss.Color("#50FA7B"))
-
-	hintStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#6272A4")).
-			Italic(true)
-
-	boxStyle = lipgloss.NewStyle().
-			Border(lipgloss.RoundedBorder()).
-			BorderForeground(lipgloss.Color("#6272A4")).
-			Padding(1, 2)
-)
-
-const asciiLogo = `                     __
-   ____ ___  _______/ /_
-  / ** '/ / / / **_/ __/
- / /_/ / /_/ (__  ) /_   _
- \__, /\__,_/____/\__/  (_)
-/____/                      `
+const asciiLogo = `                        __
+      ____ ___  _______/ /_
+     / ** '/ / / / **_/ __/
+    / /_/ / /_/ (__  ) /_   _
+    \__, /\__,_/____/\__/  (_)
+    /____/                      `
 
 type setupModel struct {
 	config        *config.Config
@@ -74,9 +45,9 @@ func NewSetupModel(cfg *config.Config, needsAuth bool) setupModel {
 	ti.Focus()
 	ti.CharLimit = 50
 	ti.Width = 30
-	ti.PromptStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#FF79C6"))
-	ti.TextStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#F8F8F2"))
-	ti.Cursor.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("#F1FA8C"))
+	ti.PromptStyle = lipgloss.NewStyle().Foreground(love)
+	ti.TextStyle = lipgloss.NewStyle().Foreground(text)
+	ti.Cursor.Style = lipgloss.NewStyle().Foreground(gold)
 
 	return setupModel{
 		config:      cfg,
@@ -132,17 +103,16 @@ func (m setupModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 
 			case stateAuth:
-				// First save the config so we don't lose settings if auth fails
+				// save config in case auth fails
 				if err := m.config.Save(); err != nil {
-					// Handle error, but continue
 					fmt.Println("Warning: Failed to save configuration before authentication.")
 				}
 
 				if m.authCursor == 0 {
-					// User chose to authenticate
+					// user chose to auth
 					return m, tea.Quit
 				} else {
-					// User chose to skip authentication
+					// user skipped auth
 					m.state = stateComplete
 				}
 				return m, nil
@@ -196,18 +166,18 @@ func (m setupModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m setupModel) View() string {
 	var sb strings.Builder
 
-	// Logo and header
+	// render logo/header
 	sb.WriteString(titleStyle.Render(asciiLogo) + "\n\n")
-	sb.WriteString(boxStyle.Render(subtitleStyle.Render("Weather Setup Wizard")) + "\n\n")
+	sb.WriteString(boxStyle.Render(subtitleStyle.Render("Simple terminal weather 🌤️")) + "\n\n")
 
 	switch m.state {
 	case stateCity:
-		sb.WriteString(highlightStyle.Render("What city would you like to use as your default? 🏙️") + "\n\n")
+		sb.WriteString(highlightStyle.Render("Enter a default city 🏙️") + "\n\n")
 		sb.WriteString(m.cityInput.View() + "\n\n")
 		sb.WriteString(hintStyle.Render("Press Enter to continue"))
 
 	case stateUnits:
-		sb.WriteString(highlightStyle.Render("Choose your preferred temperature units: 🌡️") + "\n\n")
+		sb.WriteString(highlightStyle.Render("Choose your preferred units: 🌡️") + "\n\n")
 		for i, option := range m.unitOptions {
 			var line string
 			if m.unitCursor == i {
@@ -218,11 +188,11 @@ func (m setupModel) View() string {
 			}
 			sb.WriteString(line + "\n")
 		}
-		sb.WriteString("\n" + hintStyle.Render("Press Enter to confirm your selection"))
+		sb.WriteString("\n" + hintStyle.Render("Enter to confirm"))
 
 	case stateAuth:
-		sb.WriteString(highlightStyle.Render("GitHub Authentication 🔒") + "\n\n")
-		sb.WriteString("To get weather data from the API, you need to authenticate with GitHub.\n\n")
+		sb.WriteString(highlightStyle.Render("GitHub Auth 🔒") + "\n\n")
+		sb.WriteString("To get weather data you need to authenticate with GitHub.\n\n")
 
 		for i, option := range m.authOptions {
 			var line string
@@ -243,7 +213,7 @@ func (m setupModel) View() string {
 
 		if m.needsAuth {
 			authStatus := "Authenticated ✅"
-			if m.authCursor == 1 { // User chose to skip auth
+			if m.authCursor == 1 {
 				authStatus = "Not authenticated ❌"
 			}
 			sb.WriteString(fmt.Sprintf("GitHub: %s\n", authStatus))
@@ -252,7 +222,6 @@ func (m setupModel) View() string {
 		sb.WriteString("\n" + hintStyle.Render("Press any key to continue"))
 	}
 
-	// Calculate footer position to be at the bottom of the window
 	if m.height > 0 {
 		currHeight := strings.Count(sb.String(), "\n") + 1
 		padding := m.height - currHeight - 4
@@ -261,20 +230,17 @@ func (m setupModel) View() string {
 		}
 	}
 
-	// Footer
 	footerHelp := "\n" + hintStyle.Render("↑/↓: Navigate • Enter: Select • q: Quit")
 	sb.WriteString(footerHelp)
 
 	return sb.String()
 }
 
-// Messages
 type (
 	authenticateMsg  struct{}
 	setupCompleteMsg struct{}
 )
 
-// RunSetup runs the Bubble Tea UI for the initial setup
 func RunSetup(cfg *config.Config, needsAuth bool) error {
 	model := NewSetupModel(cfg, needsAuth)
 	p := tea.NewProgram(model, tea.WithAltScreen())
@@ -284,28 +250,28 @@ func RunSetup(cfg *config.Config, needsAuth bool) error {
 		return fmt.Errorf("error running setup UI: %w", err)
 	}
 
-	// Protection against nil model
+	// protection against nil model
 	if finalModel == nil {
 		return fmt.Errorf("unexpected nil model after running UI")
 	}
 
-	// Get the final model
+	// get the final model
 	finalSetupModel, ok := finalModel.(setupModel)
 	if !ok {
 		return fmt.Errorf("unexpected model type: %T", finalModel)
 	}
 
-	// Don't save if user was just quitting with 'q'
+	// don't save if user was just quitting with 'q'
 	if finalSetupModel.quitting {
 		return nil
 	}
 
-	// Save the configuration if it wasn't saved earlier
+	// save the configuration if it wasn't saved earlier
 	if err := finalSetupModel.config.Save(); err != nil {
 		return fmt.Errorf("failed to save configuration: %w", err)
 	}
 
-	// Handle authentication if it was chosen and state shows auth
+	// handle authentication if it was chosen and state shows auth
 	if finalSetupModel.state == stateAuth && finalSetupModel.authCursor == 0 {
 		fmt.Println("Starting GitHub authentication...")
 
