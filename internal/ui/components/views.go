@@ -1,4 +1,4 @@
-package ui
+package components
 
 import (
 	"fmt"
@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/josephburgess/gust/internal/models"
+	"github.com/josephburgess/gust/internal/ui/styles"
 )
 
 type Renderer struct {
@@ -22,18 +23,18 @@ func NewRenderer(units string) *Renderer {
 func (r *Renderer) DisplayDefaultWeather(city *models.City, weather *models.OneCallResponse) {
 	current := weather.Current
 
-	fmt.Print(FormatHeader(fmt.Sprintf("WEATHER FOR %s", strings.ToUpper(city.Name))))
+	fmt.Print(styles.FormatHeader(fmt.Sprintf("WEATHER FOR %s", strings.ToUpper(city.Name))))
 
 	if len(current.Weather) > 0 {
 		weatherCond := current.Weather[0]
 		fmt.Printf("Current Conditions: %s %s\n\n",
-			HighlightStyle(weatherCond.Description),
+			styles.HighlightStyleF(weatherCond.Description),
 			models.GetWeatherEmoji(weatherCond.ID))
 
 		tempUnit := r.getTemperatureUnit()
 
 		fmt.Printf("Temperature: %s %s (F/L: %.1f%s)\n",
-			TempStyle(fmt.Sprintf("%.1f%s", current.Temp, tempUnit)),
+			styles.TempStyle(fmt.Sprintf("%.1f%s", current.Temp, tempUnit)),
 			"🌡️",
 			current.FeelsLike, tempUnit)
 
@@ -62,7 +63,7 @@ func (r *Renderer) DisplayDefaultWeather(city *models.City, weather *models.OneC
 }
 
 func (r *Renderer) DisplayDailyForecast(city *models.City, weather *models.OneCallResponse) {
-	fmt.Print(FormatHeader(fmt.Sprintf("5-DAY FORECAST FOR %s", strings.ToUpper(city.Name))))
+	fmt.Print(styles.FormatHeader(fmt.Sprintf("5-DAY FORECAST FOR %s", strings.ToUpper(city.Name))))
 
 	if len(weather.Daily) > 0 {
 		tempUnit := r.getTemperatureUnit()
@@ -79,12 +80,12 @@ func (r *Renderer) DisplayDailyForecast(city *models.City, weather *models.OneCa
 			}
 
 			fmt.Printf("%s: %s\n",
-				HighlightStyle(date),
+				styles.HighlightStyleF(date),
 				day.Summary)
 
 			fmt.Printf("  High/Low: %s/%s %s\n",
-				TempStyle(fmt.Sprintf("%.1f%s", day.Temp.Max, tempUnit)),
-				TempStyle(fmt.Sprintf("%.1f%s", day.Temp.Min, tempUnit)),
+				styles.TempStyle(fmt.Sprintf("%.1f%s", day.Temp.Max, tempUnit)),
+				styles.TempStyle(fmt.Sprintf("%.1f%s", day.Temp.Min, tempUnit)),
 				"🌡️")
 
 			fmt.Printf("  Morning: %.1f%s  Day: %.1f%s  Evening: %.1f%s  Night: %.1f%s\n",
@@ -96,7 +97,7 @@ func (r *Renderer) DisplayDailyForecast(city *models.City, weather *models.OneCa
 			if len(day.Weather) > 0 {
 				weather := day.Weather[0]
 				condition := fmt.Sprintf("%s %s", weather.Description, models.GetWeatherEmoji(weather.ID))
-				fmt.Printf("  Conditions: %s\n", InfoStyle(condition))
+				fmt.Printf("  Conditions: %s\n", styles.InfoStyle(condition))
 			}
 
 			if day.Pop > 0 {
@@ -126,7 +127,7 @@ func (r *Renderer) DisplayDailyForecast(city *models.City, weather *models.OneCa
 }
 
 func (r *Renderer) DisplayHourlyForecast(city *models.City, weather *models.OneCallResponse) {
-	fmt.Print(FormatHeader(fmt.Sprintf("24H FORECAST FOR %s", strings.ToUpper(city.Name))))
+	fmt.Print(styles.FormatHeader(fmt.Sprintf("24H FORECAST FOR %s", strings.ToUpper(city.Name))))
 
 	if len(weather.Hourly) > 0 {
 		hourLimit := int(math.Min(24, float64(len(weather.Hourly))))
@@ -148,12 +149,12 @@ func (r *Renderer) DisplayHourlyForecast(city *models.City, weather *models.OneC
 				if currentDay != "" {
 					fmt.Println()
 				}
-				fmt.Printf("%s:\n", HighlightStyle(day))
+				fmt.Printf("%s:\n", styles.HighlightStyleF(day))
 				currentDay = day
 			}
 
 			weatherCond := hour.Weather[0]
-			temp := TempStyle(fmt.Sprintf("%.1f%s", hour.Temp, tempUnit))
+			temp := styles.TempStyle(fmt.Sprintf("%.1f%s", hour.Temp, tempUnit))
 
 			popStr := ""
 			if hour.Pop > 0 {
@@ -169,7 +170,7 @@ func (r *Renderer) DisplayHourlyForecast(city *models.City, weather *models.OneC
 				temp,
 				extraSpace,
 				models.GetWeatherEmoji(weatherCond.ID),
-				InfoStyle(weatherCond.Description),
+				styles.InfoStyle(weatherCond.Description),
 				popStr)
 
 			if hour.Rain != nil && hour.Rain.OneHour > 0 {
@@ -185,7 +186,7 @@ func (r *Renderer) DisplayHourlyForecast(city *models.City, weather *models.OneC
 }
 
 func (r *Renderer) DisplayAlerts(city *models.City, weather *models.OneCallResponse) {
-	fmt.Print(FormatHeader(fmt.Sprintf("WEATHER ALERTS FOR %s", strings.ToUpper(city.Name))))
+	fmt.Print(styles.FormatHeader(fmt.Sprintf("WEATHER ALERTS FOR %s", strings.ToUpper(city.Name))))
 
 	if len(weather.Alerts) == 0 {
 		fmt.Println("No weather alerts for this area.")
@@ -194,14 +195,14 @@ func (r *Renderer) DisplayAlerts(city *models.City, weather *models.OneCallRespo
 
 	for i, alert := range weather.Alerts {
 		if i > 0 {
-			fmt.Println(Divider(30))
+			fmt.Println(styles.Divider(30))
 		}
 
-		fmt.Printf("%s\n", AlertStyle(fmt.Sprintf("⚠️  %s", alert.Event)))
+		fmt.Printf("%s\n", styles.AlertStyle(fmt.Sprintf("⚠️  %s", alert.Event)))
 		fmt.Printf("Issued by: %s\n", alert.SenderName)
 		fmt.Printf("Valid: %s to %s\n\n",
-			TimeStyle(time.Unix(alert.Start, 0).Format("Mon Jan 2 15:04")),
-			TimeStyle(time.Unix(alert.End, 0).Format("Mon Jan 2 15:04")))
+			styles.TimeStyle(time.Unix(alert.Start, 0).Format("Mon Jan 2 15:04")),
+			styles.TimeStyle(time.Unix(alert.End, 0).Format("Mon Jan 2 15:04")))
 
 		fmt.Println(alert.Description)
 		fmt.Println()
@@ -256,7 +257,7 @@ func (r *Renderer) displayPrecipitation(rain *models.RainData, snow *models.Snow
 func (r *Renderer) displayAlertSummary(alerts []models.Alert, cityName string) {
 	if len(alerts) > 0 {
 		fmt.Printf("%s Use 'gust --alerts %s' to view them.\n",
-			AlertStyle(fmt.Sprintf("⚠️  There are %d weather alerts for this area.", len(alerts))),
+			styles.AlertStyle(fmt.Sprintf("⚠️  There are %d weather alerts for this area.", len(alerts))),
 			cityName)
 	}
 }
@@ -293,18 +294,18 @@ func (r *Renderer) formatWindSpeed(speed float64) float64 {
 func (r *Renderer) DisplayCompactWeather(city *models.City, weather *models.OneCallResponse) {
 	current := weather.Current
 
-	fmt.Print(FormatHeader(fmt.Sprintf("%s WEATHER", strings.ToUpper(city.Name))))
+	fmt.Print(styles.FormatHeader(fmt.Sprintf("%s WEATHER", strings.ToUpper(city.Name))))
 
 	if len(current.Weather) > 0 {
 		weatherCond := current.Weather[0]
 		tempUnit := r.getTemperatureUnit()
 		emoji := models.GetWeatherEmoji(weatherCond.ID)
-		temp := TempStyle(fmt.Sprintf("%.1f%s", current.Temp, tempUnit))
+		temp := styles.TempStyle(fmt.Sprintf("%.1f%s", current.Temp, tempUnit))
 		feels := fmt.Sprintf("(%.1f%s)", current.FeelsLike, tempUnit)
 
 		fmt.Printf("%s %-16s    %s %s\n",
 			emoji,
-			HighlightStyle(weatherCond.Description),
+			styles.HighlightStyleF(weatherCond.Description),
 			temp,
 			feels)
 
@@ -332,7 +333,7 @@ func (r *Renderer) DisplayCompactWeather(city *models.City, weather *models.OneC
 
 		if len(weather.Alerts) > 0 {
 			fmt.Printf("     %s",
-				AlertStyle(fmt.Sprintf("⚠️ %d alerts", len(weather.Alerts))))
+				styles.AlertStyle(fmt.Sprintf("⚠️ %d alerts", len(weather.Alerts))))
 		}
 		fmt.Println()
 	}

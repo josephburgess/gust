@@ -1,4 +1,4 @@
-package ui
+package components
 
 import (
 	"bytes"
@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/josephburgess/gust/internal/models"
+	"github.com/josephburgess/gust/internal/ui/styles"
 )
 
 func TestNewRenderer(t *testing.T) {
@@ -149,13 +150,13 @@ func TestDisplayAlertsNoAlerts(t *testing.T) {
 
 func TestFormatHeader(t *testing.T) {
 	title := "TEST HEADER"
-	header := FormatHeader(title)
+	header := styles.FormatHeader(title)
 
 	if !strings.Contains(header, title) {
 		t.Errorf("Header doesn't contain title: %s", header)
 	}
 
-	if !strings.Contains(header, Divider(30)) {
+	if !strings.Contains(header, styles.Divider(len(title)*2)) {
 		t.Errorf("Header doesn't contain divider: %s", header)
 	}
 }

@@ -1,4 +1,4 @@
-package ui
+package components
 
 import (
 	"fmt"
@@ -8,6 +8,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/josephburgess/gust/internal/config"
+	"github.com/josephburgess/gust/internal/ui/styles"
 )
 
 type setupState int
@@ -27,6 +28,17 @@ const asciiLogo = `
     / /_/ / /_/ (__  ) /_   _
     \__, /\__,_/____/\__/  (_)
    /____/                      `
+
+// Use local variables to keep the original variable names in the code
+var (
+	titleStyle        = lipgloss.NewStyle().Bold(true).Foreground(styles.Rose)
+	boxStyle          = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(styles.Iris).Padding(1, 2)
+	subtitleStyle     = lipgloss.NewStyle().Foreground(styles.Gold)
+	highlightStyle    = lipgloss.NewStyle().Bold(true).Foreground(styles.Text)
+	cursorStyle       = lipgloss.NewStyle().Foreground(styles.Love)
+	selectedItemStyle = lipgloss.NewStyle().Foreground(styles.Foam)
+	hintStyle         = lipgloss.NewStyle().Foreground(styles.Subtle).Italic(true)
+)
 
 type setupModel struct {
 	config        *config.Config
@@ -49,9 +61,9 @@ func NewSetupModel(cfg *config.Config, needsAuth bool) setupModel {
 	ti.Focus()
 	ti.CharLimit = 50
 	ti.Width = len(ti.Placeholder)
-	ti.PromptStyle = lipgloss.NewStyle().Foreground(love)
-	ti.TextStyle = lipgloss.NewStyle().Foreground(text)
-	ti.Cursor.Style = lipgloss.NewStyle().Foreground(gold)
+	ti.PromptStyle = lipgloss.NewStyle().Foreground(styles.Love)
+	ti.TextStyle = lipgloss.NewStyle().Foreground(styles.Text)
+	ti.Cursor.Style = lipgloss.NewStyle().Foreground(styles.Gold)
 
 	unitCursor := 0
 	switch cfg.Units {
