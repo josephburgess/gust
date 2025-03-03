@@ -19,12 +19,13 @@ const (
 	stateComplete
 )
 
-const asciiLogo = `                        __
+const asciiLogo = `
+                        __
       ____ ___  _______/ /_
      / ** '/ / / / **_/ __/
     / /_/ / /_/ (__  ) /_   _
     \__, /\__,_/____/\__/  (_)
-    /____/                      `
+   /____/                      `
 
 type setupModel struct {
 	config        *config.Config
