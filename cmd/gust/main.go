@@ -25,8 +25,8 @@ func main() {
 	hourlyPtr := flag.Bool("hourly", false, "Show hourly forecast only")
 	alertsPtr := flag.Bool("alerts", false, "Show weather alerts only")
 	unitsPtr := flag.String("units", "", "Temperature units (metric, imperial, standard). Metric is default")
-	setupPtr := flag.Bool("setup", false, "Run the interactive setup wizard")
-	prettyPtr := flag.Bool("pretty", false, "Use the interactive UI to display weather")
+	setupPtr := flag.Bool("setup", false, "Run the setup wizard")
+	prettyPtr := flag.Bool("pretty", false, "Use the pretty UI - tbc")
 	flag.Parse()
 
 	cfg, err := config.Load()
