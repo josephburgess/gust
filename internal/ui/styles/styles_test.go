@@ -1,4 +1,4 @@
-package ui
+package styles
 
 import (
 	"strings"
@@ -6,7 +6,7 @@ import (
 )
 
 func TestDivider(t *testing.T) {
-	divider := Divider()
+	divider := Divider(35)
 	expected := strings.Repeat("─", 35)
 
 	if divider != expected {
@@ -15,17 +15,18 @@ func TestDivider(t *testing.T) {
 }
 
 func TestFormatHeaderFunction(t *testing.T) {
-	result := FormatHeader("TEST TITLE")
+	title := "TEST TITLE"
+	result := FormatHeader(title)
 
 	if strings.Count(result, "\n") != 3 {
 		t.Errorf("Expected header to have 3 newlines, got %d", strings.Count(result, "\n"))
 	}
 
-	if !strings.Contains(result, "TEST TITLE") {
+	if !strings.Contains(result, title) {
 		t.Errorf("Expected header to contain the title, got %s", result)
 	}
 
-	if !strings.Contains(result, Divider()) {
+	if !strings.Contains(result, Divider(len(title)*2)) {
 		t.Errorf("Expected header to contain a divider, got %s", result)
 	}
 }
@@ -39,7 +40,7 @@ func TestStyleFunctions(t *testing.T) {
 	}{
 		{"HeaderStyle", HeaderStyle},
 		{"TempStyle", TempStyle},
-		{"HighlightStyle", HighlightStyle},
+		{"HighlightStyle", HighlightStyleF},
 		{"InfoStyle", InfoStyle},
 		{"TimeStyle", TimeStyle},
 		{"AlertStyle", AlertStyle},

@@ -11,6 +11,7 @@ type Config struct {
 	DefaultCity string `json:"default_city"`
 	APIURL      string `json:"api_url"`
 	Units       string `json:"units"`
+	DefaultView string `json:"default_view"`
 }
 
 type GetConfigPathFunc func() (string, error)
@@ -39,7 +40,7 @@ func Load() (*Config, error) {
 	}
 
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
-		return &Config{Units: "metric"}, nil
+		return &Config{Units: "metric", DefaultView: "default"}, nil
 	}
 
 	file, err := os.Open(configPath)
@@ -55,6 +56,10 @@ func Load() (*Config, error) {
 
 	if config.Units == "" {
 		config.Units = "metric"
+	}
+
+	if config.DefaultView == "" {
+		config.DefaultView = "default"
 	}
 
 	return &config, nil

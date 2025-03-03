@@ -9,7 +9,9 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/josephburgess/gust/internal/api"
 	"github.com/josephburgess/gust/internal/config"
-	"github.com/josephburgess/gust/internal/ui"
+	"github.com/josephburgess/gust/internal/ui/renderer"
+	"github.com/josephburgess/gust/internal/ui/setup"
+	"github.com/josephburgess/gust/internal/ui/styles"
 )
 
 func main() {
@@ -20,6 +22,7 @@ func main() {
 	defaulPtr := flag.String("default", "", "Set a new default city")
 	loginPtr := flag.Bool("login", false, "Authenticate with GitHub")
 	apiURLPtr := flag.String("api", "", "Set custom API server URL")
+	detailedPtr := flag.Bool("detailed", false, "Show default detailed weather view")
 	fullPtr := flag.Bool("full", false, "Show full weather report including daily and hourly forecasts")
 	dailyPtr := flag.Bool("daily", false, "Show daily forecast only")
 	hourlyPtr := flag.Bool("hourly", false, "Show hourly forecast only")
@@ -27,17 +30,19 @@ func main() {
 	unitsPtr := flag.String("units", "", "Temperature units (metric, imperial, standard). Metric is default")
 	setupPtr := flag.Bool("setup", false, "Run the setup wizard")
 	prettyPtr := flag.Bool("pretty", false, "Use the pretty UI - tbc")
+	compactPtr := flag.Bool("compact", false, "Show compact weather view")
+
 	flag.Parse()
 
 	cfg, err := config.Load()
 	if err != nil {
-		ui.ExitWithError("Failed to load configuration", err)
+		styles.ExitWithError("Failed to load configuration", err)
 	}
 
 	if *apiURLPtr != "" {
 		cfg.APIURL = *apiURLPtr
 		if err := cfg.Save(); err != nil {
-			ui.ExitWithError("Failed to save configuration", err)
+			styles.ExitWithError("Failed to save configuration", err)
 		}
 		fmt.Printf("API server URL set to: %s\n", *apiURLPtr)
 		return
@@ -46,7 +51,7 @@ func main() {
 	if cfg.APIURL == "" {
 		cfg.APIURL = "https://breeze.joeburgess.dev"
 		if err := cfg.Save(); err != nil {
-			ui.ExitWithError("Failed to save configuration", err)
+			styles.ExitWithError("Failed to save configuration", err)
 		}
 	}
 
@@ -57,25 +62,25 @@ func main() {
 
 	authConfig, err := config.LoadAuthConfig()
 	if err != nil {
-		ui.ExitWithError("Failed to load authentication", err)
+		styles.ExitWithError("Failed to load authentication", err)
 	}
 
 	needsSetup := (cfg.DefaultCity == "" || *setupPtr)
 	needsAuth := authConfig == nil
 
 	if needsSetup {
-		if err := ui.RunSetup(cfg, needsAuth); err != nil {
-			ui.ExitWithError("Setup failed", err)
+		if err := setup.RunSetup(cfg, needsAuth); err != nil {
+			styles.ExitWithError("Setup failed", err)
 		}
 
 		cfg, err = config.Load()
 		if err != nil {
-			ui.ExitWithError("Failed to load configuration after setup", err)
+			styles.ExitWithError("Failed to load configuration after setup", err)
 		}
 
 		authConfig, err = config.LoadAuthConfig()
 		if err != nil {
-			ui.ExitWithError("Failed to load authentication after setup", err)
+			styles.ExitWithError("Failed to load authentication after setup", err)
 		}
 
 		if *cityPtr == "" && len(flag.Args()) == 0 && !*fullPtr && !*dailyPtr && !*hourlyPtr && !*alertsPtr && !*prettyPtr {
@@ -92,7 +97,7 @@ func main() {
 
 		cfg.Units = *unitsPtr
 		if err := cfg.Save(); err != nil {
-			ui.ExitWithError("Failed to save config", err)
+			styles.ExitWithError("Failed to save config", err)
 		}
 		fmt.Printf("Units set to: %s\n", *unitsPtr)
 		return
@@ -101,7 +106,7 @@ func main() {
 	if *defaulPtr != "" {
 		cfg.DefaultCity = *defaulPtr
 		if err := cfg.Save(); err != nil {
-			ui.ExitWithError("Failed to save configuration", err)
+			styles.ExitWithError("Failed to save configuration", err)
 		}
 		fmt.Printf("Default city set to: %s\n", *defaulPtr)
 		return
@@ -126,20 +131,38 @@ func main() {
 
 	weather, err := client.GetWeather(cityName)
 	if err != nil {
-		ui.ExitWithError("Failed to get weather data", err)
+		styles.ExitWithError("Failed to get weather data", err)
 	}
 
-	renderer := ui.NewRenderer(cfg.Units)
+	weatherRenderer := renderer.NewWeatherRenderer("terminal", cfg.Units)
+
+	// render any of the flags passed to gust cmd first
+	// if not use user config
 	if *alertsPtr {
-		renderer.DisplayAlerts(weather.City, weather.Weather)
+		weatherRenderer.RenderAlerts(weather.City, weather.Weather)
 	} else if *hourlyPtr {
-		renderer.DisplayHourlyForecast(weather.City, weather.Weather)
+		weatherRenderer.RenderHourlyForecast(weather.City, weather.Weather)
 	} else if *dailyPtr {
-		renderer.DisplayDailyForecast(weather.City, weather.Weather)
+		weatherRenderer.RenderDailyForecast(weather.City, weather.Weather)
 	} else if *fullPtr {
-		renderer.DisplayFullWeather(weather.City, weather.Weather)
+		weatherRenderer.RenderFullWeather(weather.City, weather.Weather)
+	} else if *compactPtr {
+		weatherRenderer.RenderCompactWeather(weather.City, weather.Weather)
+	} else if *detailedPtr {
+		weatherRenderer.RenderCurrentWeather(weather.City, weather.Weather)
 	} else {
-		renderer.DisplayCurrentWeather(weather.City, weather.Weather)
+		switch cfg.DefaultView {
+		case "compact":
+			weatherRenderer.RenderCompactWeather(weather.City, weather.Weather)
+		case "daily":
+			weatherRenderer.RenderDailyForecast(weather.City, weather.Weather)
+		case "hourly":
+			weatherRenderer.RenderHourlyForecast(weather.City, weather.Weather)
+		case "full":
+			weatherRenderer.RenderFullWeather(weather.City, weather.Weather)
+		case "default", "":
+			weatherRenderer.RenderCurrentWeather(weather.City, weather.Weather)
+		}
 	}
 }
 
@@ -147,11 +170,11 @@ func handleLogin(apiURL string) {
 	fmt.Println("Starting GitHub authentication...")
 	authConfig, err := config.Authenticate(apiURL)
 	if err != nil {
-		ui.ExitWithError("Authentication failed", err)
+		styles.ExitWithError("Authentication failed", err)
 	}
 
 	if err := config.SaveAuthConfig(authConfig); err != nil {
-		ui.ExitWithError("Failed to save authentication", err)
+		styles.ExitWithError("Failed to save authentication", err)
 	}
 
 	fmt.Printf("Successfully authenticated as %s\n", authConfig.GithubUser)

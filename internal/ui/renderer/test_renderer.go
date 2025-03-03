@@ -1,4 +1,4 @@
-package ui
+package renderer
 
 import (
 	"bytes"
@@ -9,16 +9,24 @@ import (
 	"time"
 
 	"github.com/josephburgess/gust/internal/models"
+	"github.com/josephburgess/gust/internal/ui/styles"
 )
 
-func TestNewRenderer(t *testing.T) {
-	renderer := NewRenderer("")
+func TestNewWeatherRenderer(t *testing.T) {
+	renderer := NewWeatherRenderer("terminal", "")
 	if renderer == nil {
-		t.Fatal("NewRenderer() should return a non-nil renderer")
+		t.Fatal("NewWeatherRenderer() should return a non-nil renderer")
 	}
 }
 
-func TestDisplayCurrentWeather(t *testing.T) {
+func TestNewTerminalRenderer(t *testing.T) {
+	renderer := NewTerminalRenderer("")
+	if renderer == nil {
+		t.Fatal("NewTerminalRenderer() should return a non-nil renderer")
+	}
+}
+
+func TestRenderCurrentWeather(t *testing.T) {
 	oldStdout := os.Stdout
 	r, w, _ := os.Pipe()
 	os.Stdout = w
@@ -55,8 +63,8 @@ func TestDisplayCurrentWeather(t *testing.T) {
 		},
 	}
 
-	renderer := NewRenderer("metric")
-	renderer.DisplayCurrentWeather(city, weather)
+	renderer := NewTerminalRenderer("metric")
+	renderer.RenderCurrentWeather(city, weather)
 
 	w.Close()
 	var buf bytes.Buffer
@@ -78,7 +86,7 @@ func TestDisplayCurrentWeather(t *testing.T) {
 	}
 }
 
-func TestDisplayAlerts(t *testing.T) {
+func TestRenderAlerts(t *testing.T) {
 	oldStdout := os.Stdout
 	r, w, _ := os.Pipe()
 	os.Stdout = w
@@ -99,8 +107,8 @@ func TestDisplayAlerts(t *testing.T) {
 		},
 	}
 
-	renderer := NewRenderer("")
-	renderer.DisplayAlerts(city, weather)
+	renderer := NewTerminalRenderer("")
+	renderer.RenderAlerts(city, weather)
 
 	w.Close()
 	var buf bytes.Buffer
@@ -121,7 +129,7 @@ func TestDisplayAlerts(t *testing.T) {
 	}
 }
 
-func TestDisplayAlertsNoAlerts(t *testing.T) {
+func TestRenderAlertsNoAlerts(t *testing.T) {
 	oldStdout := os.Stdout
 	r, w, _ := os.Pipe()
 	os.Stdout = w
@@ -134,8 +142,8 @@ func TestDisplayAlertsNoAlerts(t *testing.T) {
 		Alerts: []models.Alert{},
 	}
 
-	renderer := NewRenderer("")
-	renderer.DisplayAlerts(city, weather)
+	renderer := NewTerminalRenderer("")
+	renderer.RenderAlerts(city, weather)
 
 	w.Close()
 	var buf bytes.Buffer
@@ -147,15 +155,69 @@ func TestDisplayAlertsNoAlerts(t *testing.T) {
 	}
 }
 
+func TestBaseRendererHelpers(t *testing.T) {
+	testCases := []struct {
+		units                 string
+		expectedTempUnit      string
+		expectedWindSpeedUnit string
+	}{
+		{"metric", "°C", "km/h"},
+		{"imperial", "°F", "mph"},
+		{"standard", "K", "km/h"},
+	}
+
+	for _, tc := range testCases {
+		t.Run("Units: "+tc.units, func(t *testing.T) {
+			renderer := BaseRenderer{Units: tc.units}
+
+			tempUnit := renderer.GetTemperatureUnit()
+			if tempUnit != tc.expectedTempUnit {
+				t.Errorf("GetTemperatureUnit() = %v, want %v", tempUnit, tc.expectedTempUnit)
+			}
+
+			windUnit := renderer.GetWindSpeedUnit()
+			if windUnit != tc.expectedWindSpeedUnit {
+				t.Errorf("GetWindSpeedUnit() = %v, want %v", windUnit, tc.expectedWindSpeedUnit)
+			}
+
+			// Test wind speed conversion
+			windSpeed := 10.0
+			convertedSpeed := renderer.FormatWindSpeed(windSpeed)
+
+			if tc.units == "imperial" {
+				if convertedSpeed != windSpeed {
+					t.Errorf("FormatWindSpeed() = %v, want %v", convertedSpeed, windSpeed)
+				}
+			} else {
+				if convertedSpeed != windSpeed*3.6 {
+					t.Errorf("FormatWindSpeed() = %v, want %v", convertedSpeed, windSpeed*3.6)
+				}
+			}
+		})
+	}
+}
+
+func TestFormatDateTime(t *testing.T) {
+	timestamp := int64(1609459200) // 2021-01-01 00:00:00 UTC
+	format := "2006-01-02 15:04:05"
+
+	result := FormatDateTime(timestamp, format)
+	expected := "2021-01-01 00:00:00"
+
+	if result != expected {
+		t.Errorf("FormatDateTime() = %v, want %v", result, expected)
+	}
+}
+
 func TestFormatHeader(t *testing.T) {
 	title := "TEST HEADER"
-	header := FormatHeader(title)
+	header := styles.FormatHeader(title)
 
 	if !strings.Contains(header, title) {
 		t.Errorf("Header doesn't contain title: %s", header)
 	}
 
-	if !strings.Contains(header, Divider()) {
+	if !strings.Contains(header, styles.Divider(len(title)*2)) {
 		t.Errorf("Header doesn't contain divider: %s", header)
 	}
 }
