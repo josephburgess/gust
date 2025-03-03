@@ -42,10 +42,10 @@ type setupModel struct {
 
 func NewSetupModel(cfg *config.Config, needsAuth bool) setupModel {
 	ti := textinput.New()
-	ti.Placeholder = "Enter your default city"
+	ti.Placeholder = "Wherever the wind blows..."
 	ti.Focus()
 	ti.CharLimit = 50
-	ti.Width = 30
+	ti.Width = len(ti.Placeholder)
 	ti.PromptStyle = lipgloss.NewStyle().Foreground(love)
 	ti.TextStyle = lipgloss.NewStyle().Foreground(text)
 	ti.Cursor.Style = lipgloss.NewStyle().Foreground(gold)
@@ -167,18 +167,21 @@ func (m setupModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m setupModel) View() string {
 	var sb strings.Builder
 
+	// build content
+	var content strings.Builder
+
 	// render logo/header
-	sb.WriteString(titleStyle.Render(asciiLogo) + "\n\n")
-	sb.WriteString(boxStyle.Render(subtitleStyle.Render("Simple terminal weather 🌤️")) + "\n\n")
+	content.WriteString(titleStyle.Render(asciiLogo) + "\n\n")
+	content.WriteString(boxStyle.Render(subtitleStyle.Render("Simple terminal weather 🌤️")) + "\n\n")
 
 	switch m.state {
 	case stateCity:
-		sb.WriteString(highlightStyle.Render("Enter a default city 🏙️") + "\n\n")
-		sb.WriteString(m.cityInput.View() + "\n\n")
-		sb.WriteString(hintStyle.Render("Press Enter to continue"))
+		content.WriteString(highlightStyle.Render("Enter a default city 🏙️") + "\n\n")
+		content.WriteString(m.cityInput.View() + "\n\n")
+		content.WriteString(hintStyle.Render("Press Enter to continue"))
 
 	case stateUnits:
-		sb.WriteString(highlightStyle.Render("Choose your preferred units: 🌡️") + "\n\n")
+		content.WriteString(highlightStyle.Render("Choose your preferred units: 🌡️") + "\n\n")
 		for i, option := range m.unitOptions {
 			var line string
 			if m.unitCursor == i {
@@ -187,13 +190,13 @@ func (m setupModel) View() string {
 			} else {
 				line = fmt.Sprintf("  %s", option)
 			}
-			sb.WriteString(line + "\n")
+			content.WriteString(line + "\n")
 		}
-		sb.WriteString("\n" + hintStyle.Render("Enter to confirm"))
+		content.WriteString("\n" + hintStyle.Render("Press Enter to confirm"))
 
 	case stateAuth:
-		sb.WriteString(highlightStyle.Render("GitHub Auth 🔒") + "\n\n")
-		sb.WriteString("To get weather data you need to authenticate with GitHub.\n\n")
+		content.WriteString(highlightStyle.Render("GitHub Auth 🔒") + "\n\n")
+		content.WriteString("To get weather data you need to authenticate with GitHub (don't worry, no permissions requested!).\n\n")
 
 		for i, option := range m.authOptions {
 			var line string
@@ -203,36 +206,58 @@ func (m setupModel) View() string {
 			} else {
 				line = fmt.Sprintf("  %s", option)
 			}
-			sb.WriteString(line + "\n")
+			content.WriteString(line + "\n")
 		}
-		sb.WriteString("\n" + hintStyle.Render("Press Enter to confirm your selection"))
+		content.WriteString("\n" + hintStyle.Render("Press Enter to confirm your selection"))
 
 	case stateComplete:
-		sb.WriteString(highlightStyle.Render("✓ Setup complete! 🎉") + "\n\n")
-		sb.WriteString(fmt.Sprintf("Default city: %s 🏙️\n", m.config.DefaultCity))
-		sb.WriteString(fmt.Sprintf("Units: %s 🌡️\n", m.config.Units))
+		content.WriteString(highlightStyle.Render("✓ Setup complete! 🎉") + "\n\n")
+		content.WriteString(fmt.Sprintf("Default city: %s 🏙️\n", m.config.DefaultCity))
+		content.WriteString(fmt.Sprintf("Units: %s 🌡️\n", m.config.Units))
 
 		if m.needsAuth {
 			authStatus := "Authenticated ✅"
 			if m.authCursor == 1 {
 				authStatus = "Not authenticated ❌"
 			}
-			sb.WriteString(fmt.Sprintf("GitHub: %s\n", authStatus))
+			content.WriteString(fmt.Sprintf("GitHub: %s\n", authStatus))
 		}
 
-		sb.WriteString("\n" + hintStyle.Render("Press any key to continue"))
+		content.WriteString("\n" + hintStyle.Render("Press any key to continue"))
 	}
 
-	if m.height > 0 {
-		currHeight := strings.Count(sb.String(), "\n") + 1
-		padding := m.height - currHeight - 4
-		if padding > 0 {
-			sb.WriteString(strings.Repeat("\n", padding))
-		}
-	}
-
+	// footer
 	footerHelp := "\n" + hintStyle.Render("↑/↓: Navigate • Enter: Select • q: Quit")
-	sb.WriteString(footerHelp)
+	content.WriteString(footerHelp)
+
+	// attempt to center content
+	contentStr := content.String()
+	lines := strings.Split(contentStr, "\n")
+
+	// only if we have window dimensions!!
+	if m.width > 0 && m.height > 0 {
+		// vert
+		contentHeight := len(lines)
+		verticalPadding := (m.height - contentHeight) / 2
+
+		if verticalPadding > 0 {
+			sb.WriteString(strings.Repeat("\n", verticalPadding))
+		}
+
+		// horizontal
+		for _, line := range lines {
+			visibleLen := lipgloss.Width(line)
+			padding := (m.width - visibleLen) / 2
+
+			if padding > 0 {
+				sb.WriteString(strings.Repeat(" ", padding))
+			}
+			sb.WriteString(line + "\n")
+		}
+	} else {
+		// otherwise just render without centring
+		sb.WriteString(contentStr)
+	}
 
 	return sb.String()
 }
