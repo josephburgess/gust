@@ -9,7 +9,8 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/josephburgess/gust/internal/api"
 	"github.com/josephburgess/gust/internal/config"
-	"github.com/josephburgess/gust/internal/ui/components"
+	"github.com/josephburgess/gust/internal/ui/renderer"
+	"github.com/josephburgess/gust/internal/ui/setup"
 	"github.com/josephburgess/gust/internal/ui/styles"
 )
 
@@ -68,7 +69,7 @@ func main() {
 	needsAuth := authConfig == nil
 
 	if needsSetup {
-		if err := components.RunSetup(cfg, needsAuth); err != nil {
+		if err := setup.RunSetup(cfg, needsAuth); err != nil {
 			styles.ExitWithError("Setup failed", err)
 		}
 
@@ -133,32 +134,34 @@ func main() {
 		styles.ExitWithError("Failed to get weather data", err)
 	}
 
-	renderer := components.NewRenderer(cfg.Units)
+	weatherRenderer := renderer.NewWeatherRenderer("terminal", cfg.Units)
+
+	// render any of the flags passed to gust cmd first
+	// if not use user config
 	if *alertsPtr {
-		renderer.DisplayAlerts(weather.City, weather.Weather)
+		weatherRenderer.RenderAlerts(weather.City, weather.Weather)
 	} else if *hourlyPtr {
-		renderer.DisplayHourlyForecast(weather.City, weather.Weather)
+		weatherRenderer.RenderHourlyForecast(weather.City, weather.Weather)
 	} else if *dailyPtr {
-		renderer.DisplayDailyForecast(weather.City, weather.Weather)
+		weatherRenderer.RenderDailyForecast(weather.City, weather.Weather)
 	} else if *fullPtr {
-		renderer.DisplayFullWeather(weather.City, weather.Weather)
+		weatherRenderer.RenderFullWeather(weather.City, weather.Weather)
 	} else if *compactPtr {
-		renderer.DisplayCompactWeather(weather.City, weather.Weather)
+		weatherRenderer.RenderCompactWeather(weather.City, weather.Weather)
 	} else if *detailedPtr {
-		renderer.DisplayDefaultWeather(weather.City, weather.Weather)
+		weatherRenderer.RenderCurrentWeather(weather.City, weather.Weather)
 	} else {
-		// Use the default view from config
 		switch cfg.DefaultView {
 		case "compact":
-			renderer.DisplayCompactWeather(weather.City, weather.Weather)
+			weatherRenderer.RenderCompactWeather(weather.City, weather.Weather)
 		case "daily":
-			renderer.DisplayDailyForecast(weather.City, weather.Weather)
+			weatherRenderer.RenderDailyForecast(weather.City, weather.Weather)
 		case "hourly":
-			renderer.DisplayHourlyForecast(weather.City, weather.Weather)
+			weatherRenderer.RenderHourlyForecast(weather.City, weather.Weather)
 		case "full":
-			renderer.DisplayFullWeather(weather.City, weather.Weather)
+			weatherRenderer.RenderFullWeather(weather.City, weather.Weather)
 		case "default", "":
-			renderer.DisplayDefaultWeather(weather.City, weather.Weather)
+			weatherRenderer.RenderCurrentWeather(weather.City, weather.Weather)
 		}
 	}
 }
