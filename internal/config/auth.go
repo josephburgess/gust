@@ -36,9 +36,9 @@ func defaultGetAuthConfigPath() (string, error) {
 	return filepath.Join(homeDir, ".config", "gust", "auth.json"), nil
 }
 
-func Authenticate(serverURL string) (*AuthConfig, error) {
-	if serverURL == "" {
-		serverURL = "https://gust.ngrok.io"
+func Authenticate(apiUrl string) (*AuthConfig, error) {
+	if apiUrl == "" {
+		apiUrl = "https://breeze.joeburgess.dev"
 	}
 
 	authDone := make(chan *AuthConfig)
@@ -56,7 +56,7 @@ func Authenticate(serverURL string) (*AuthConfig, error) {
 			return
 		}
 
-		apiConfig, err := exchangeCodeForAPIKey(serverURL, code, port)
+		apiConfig, err := exchangeCodeForAPIKey(apiUrl, code, port)
 		if err != nil {
 			errorChan <- err
 			w.WriteHeader(http.StatusInternalServerError)
@@ -67,7 +67,7 @@ func Authenticate(serverURL string) (*AuthConfig, error) {
 		w.WriteHeader(http.StatusOK)
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 
-		err = templates.RenderSuccessTemplate(w, apiConfig.GithubUser, apiConfig.APIKey, serverURL)
+		err = templates.RenderSuccessTemplate(w, apiConfig.GithubUser, apiConfig.APIKey, apiUrl)
 		if err != nil {
 			errorChan <- fmt.Errorf("failed to render success template: %w", err)
 			return
@@ -87,7 +87,7 @@ func Authenticate(serverURL string) (*AuthConfig, error) {
 		}
 	}()
 
-	authURL, err := getAuthURL(serverURL, port)
+	authURL, err := getAuthURL(apiUrl, port)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get auth URL: %w", err)
 	}
