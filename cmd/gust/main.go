@@ -19,13 +19,14 @@ func main() {
 	cityPtr := flag.String("city", "", "Name of the city")
 	defaulPtr := flag.String("default", "", "Set a new default city")
 	loginPtr := flag.Bool("login", false, "Authenticate with GitHub")
-	logoutPtr := flag.Bool("logout", false, "Log out and remove authentication")
 	apiURLPtr := flag.String("api", "", "Set custom API server URL")
 	fullPtr := flag.Bool("full", false, "Show full weather report including daily and hourly forecasts")
 	dailyPtr := flag.Bool("daily", false, "Show daily forecast only")
 	hourlyPtr := flag.Bool("hourly", false, "Show hourly forecast only")
 	alertsPtr := flag.Bool("alerts", false, "Show weather alerts only")
 	unitsPtr := flag.String("units", "", "Temperature units (metric, imperial, standard). Metric is default")
+	setupPtr := flag.Bool("setup", false, "Run the interactive setup wizard")
+	prettyPtr := flag.Bool("pretty", false, "Use the interactive UI to display weather")
 	flag.Parse()
 
 	cfg, err := config.Load()
@@ -49,14 +50,38 @@ func main() {
 		}
 	}
 
-	if *logoutPtr {
-		handleLogout()
-		return
-	}
-
 	if *loginPtr {
 		handleLogin(cfg.APIURL)
 		return
+	}
+
+	authConfig, err := config.LoadAuthConfig()
+	if err != nil {
+		ui.ExitWithError("Failed to load authentication", err)
+	}
+
+	needsSetup := (cfg.DefaultCity == "" || *setupPtr)
+	needsAuth := authConfig == nil
+
+	if needsSetup {
+		if err := ui.RunSetup(cfg, needsAuth); err != nil {
+			ui.ExitWithError("Setup failed", err)
+		}
+
+		cfg, err = config.Load()
+		if err != nil {
+			ui.ExitWithError("Failed to load configuration after setup", err)
+		}
+
+		authConfig, err = config.LoadAuthConfig()
+		if err != nil {
+			ui.ExitWithError("Failed to load authentication after setup", err)
+		}
+
+		if *cityPtr == "" && len(flag.Args()) == 0 && !*fullPtr && !*dailyPtr && !*hourlyPtr && !*alertsPtr && !*prettyPtr {
+			fmt.Println("Setup complete! Run 'gust' to check the weather for your default city.")
+			return
+		}
 	}
 
 	if *unitsPtr != "" {
@@ -82,14 +107,9 @@ func main() {
 		return
 	}
 
-	authConfig, err := config.LoadAuthConfig()
-	if err != nil {
-		ui.ExitWithError("Failed to load authentication", err)
-	}
-
 	if authConfig == nil {
 		fmt.Println("You need to authenticate with GitHub before using Gust.")
-		fmt.Println("Run 'gust --login' to authenticate.")
+		fmt.Println("Run 'gust --login' to authenticate or 'gust --setup' to run the setup wizard.")
 		os.Exit(1)
 	}
 
@@ -98,6 +118,7 @@ func main() {
 		fmt.Println("No city specified and no default city set.")
 		fmt.Println("Specify a city: gust [city name]")
 		fmt.Println("Or set a default city: gust --default \"London\"")
+		fmt.Println("Or run the setup wizard: gust --setup")
 		os.Exit(1)
 	}
 
@@ -122,40 +143,21 @@ func main() {
 	}
 }
 
-func handleLogout() {
-	authConfig, _ := config.LoadAuthConfig()
-	if authConfig == nil {
-		fmt.Println("Not currently logged in")
-		return
-	}
-
-	authConfigPath, err := config.GetAuthConfigPath()
-	if err != nil {
-		ui.ExitWithError("Failed to get auth config path", err)
-	}
-
-	if err := os.Remove(authConfigPath); err != nil {
-		ui.ExitWithError("Failed to remove auth config file", err)
-	}
-
-	fmt.Println("Logged out successfully")
-}
-
 func handleLogin(apiURL string) {
-	fmt.Println("Starting GitHub authentication...")
-	authConfig, err := config.Authenticate(apiURL)
+	fmt.println("starting github authentication...")
+	authconfig, err := config.authenticate(apiurl)
 	if err != nil {
-		ui.ExitWithError("Authentication failed", err)
+		ui.exitwitherror("authentication failed", err)
 	}
 
-	if err := config.SaveAuthConfig(authConfig); err != nil {
-		ui.ExitWithError("Failed to save authentication", err)
+	if err := config.saveauthconfig(authconfig); err != nil {
+		ui.exitwitherror("failed to save authentication", err)
 	}
 
-	fmt.Printf("Successfully authenticated as %s\n", authConfig.GithubUser)
+	fmt.printf("successfully authenticated as %s\n", authconfig.githubuser)
 }
 
-func determineCityName(cityFlag string, args []string, defaultCity string) string {
+func determinecityname(cityflag string, args []string, defaultcity string) string {
 	if cityFlag != "" {
 		return cityFlag
 	}
