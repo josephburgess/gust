@@ -99,7 +99,7 @@ func (m Model) buildContent() string {
 	}
 
 	// footer
-	sb.WriteString("\n" + hintStyle.Render("↑/↓: Navigate • Enter: Select • Ctrl + C: Quit"))
+	sb.WriteString("\n" + hintStyle.Render("↓ j / ↑ k Navigate • Enter: Select • Ctrl + C: Quit"))
 
 	return sb.String()
 }

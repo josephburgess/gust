@@ -29,6 +29,8 @@ func (m Model) searchCities() tea.Cmd {
 
 // updates the model based on messages
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var cmds []tea.Cmd
+
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		if m.State == StateCity {
@@ -58,12 +60,20 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.State = StateCitySelect
 		return m, nil
 	case spinner.TickMsg:
-		var cmd tea.Cmd
-		m.Spinner, cmd = m.Spinner.Update(msg)
-		return m, cmd
+		var spinnerCmd tea.Cmd
+		m.Spinner, spinnerCmd = m.Spinner.Update(msg)
+		cmds = append(cmds, spinnerCmd)
+	default:
+		if m.State == StateCity {
+			var tiCmd tea.Cmd
+			m.CityInput, tiCmd = m.CityInput.Update(msg)
+			if tiCmd != nil {
+				cmds = append(cmds, tiCmd)
+			}
+		}
 	}
 
-	return m, nil
+	return m, tea.Batch(cmds...)
 }
 
 func (m Model) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
@@ -189,9 +199,9 @@ func (m Model) handleTextInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, tea.Quit
 	case "enter":
 		if m.CityInput.Value() != "" {
-			m.CitySearchQuery = m.CityInput.Value() // Set the search query
-			m.State = StateCitySearch               // Change state to searching
-			return m, m.searchCities()              // Start the search command
+			m.CitySearchQuery = m.CityInput.Value()
+			m.State = StateCitySearch
+			return m, m.searchCities()
 		}
 		return m, nil
 	}
