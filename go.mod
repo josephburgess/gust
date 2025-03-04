@@ -3,6 +3,7 @@ module github.com/josephburgess/gust
 go 1.21
 
 require (
+	github.com/alecthomas/kong v1.8.1
 	github.com/charmbracelet/bubbles v0.20.0
 	github.com/charmbracelet/bubbletea v1.1.0
 	github.com/charmbracelet/lipgloss v0.13.0
