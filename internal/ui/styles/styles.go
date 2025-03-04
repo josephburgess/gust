@@ -60,6 +60,9 @@ var (
 	InfoStyle       = color.New(color.FgHiBlue).SprintFunc()
 	TimeStyle       = color.New(color.FgHiYellow).SprintFunc()
 	AlertStyle      = color.New(color.FgHiRed, color.Bold).SprintFunc()
+	ErrorStyle      = color.New(color.FgHiRed, color.Bold).SprintFunc()
+	SuccessStyle    = color.New(color.FgHiGreen, color.Bold).SprintFunc()
+	WarningStyle    = color.New(color.FgHiYellow).SprintFunc()
 )
 
 func Divider(len int) string {
