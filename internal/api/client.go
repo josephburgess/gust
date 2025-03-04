@@ -61,17 +61,13 @@ func (c *Client) GetWeather(cityName string) (*WeatherResponse, error) {
 
 	return &response, nil
 }
-func (c *Client) SearchCities(query string) ([]models.City, error) {
-	fmt.Println("Client.SearchCities called with query:", query)
-	fmt.Println("Client details - baseURL:", c.baseURL, "apiKey present:", c.apiKey != "")
 
+func (c *Client) SearchCities(query string) ([]models.City, error) {
 	endpoint := fmt.Sprintf(
 		"%s/api/cities/search?q=%s",
 		c.baseURL,
 		url.QueryEscape(query),
 	)
-
-	fmt.Println("Making API request to:", endpoint)
 
 	resp, err := c.client.Get(endpoint)
 	if err != nil {
@@ -90,6 +86,5 @@ func (c *Client) SearchCities(query string) ([]models.City, error) {
 		return nil, fmt.Errorf("failed to decode API response: %w", err)
 	}
 
-	fmt.Printf("API returned %d cities\n", len(cities))
 	return cities, nil
 }

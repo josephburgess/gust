@@ -27,8 +27,9 @@ func (m Model) buildContent() string {
 		sb.WriteString(hintStyle.Render("Press Enter to continue"))
 
 	case StateCitySearch:
-		sb.WriteString(highlightStyle.Render("Searching for cities... 🔍") + "\n\n")
-		sb.WriteString("Please wait while we search for \"" + m.CitySearchQuery + "\"")
+		sb.WriteString(highlightStyle.Render("Searching for cities...") + "\n\n")
+		sb.WriteString(fmt.Sprintf("%s Looking for \"%s\"", m.Spinner.View(), m.CitySearchQuery))
+		sb.WriteString("\n\n")
 
 	case StateCitySelect:
 		sb.WriteString(highlightStyle.Render("Select your city: 🏙️") + "\n\n")

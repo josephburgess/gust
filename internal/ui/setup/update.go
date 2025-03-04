@@ -3,6 +3,7 @@ package setup
 import (
 	"fmt"
 
+	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/josephburgess/gust/internal/models"
 )
@@ -14,18 +15,14 @@ type CitiesSearchResult struct {
 
 func (m Model) searchCities() tea.Cmd {
 	return func() tea.Msg {
-		fmt.Println("Searching for cities with query:", m.CitySearchQuery)
 		if m.Client == nil {
-			fmt.Println("ERROR: API client is nil!")
 			return CitiesSearchResult{[]models.City{}, fmt.Errorf("API client not initialized")}
 		}
 
 		cities, err := m.Client.SearchCities(m.CitySearchQuery)
 		if err != nil {
-			fmt.Println("Error searching for cities:", err)
 			return CitiesSearchResult{[]models.City{}, err}
 		}
-		fmt.Printf("Found %d cities\n", len(cities))
 		return CitiesSearchResult{cities, nil}
 	}
 }
@@ -45,12 +42,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.State = StateComplete
 		return m, nil
 	case CitiesSearchResult:
-		fmt.Printf("Received city search result: %d cities, error: %v\n",
-			len(msg.cities), msg.err)
-
 		if msg.err != nil {
-			// Log the error and go back to input
-			fmt.Println("Error searching for cities:", msg.err)
 			m.State = StateCity
 			return m, nil
 		}
@@ -59,15 +51,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.CityCursor = 0
 
 		if len(m.CityOptions) == 0 {
-			fmt.Println("No cities found, returning to input")
-			// No results, go back to input
 			m.State = StateCity
 			return m, nil
 		}
 
-		fmt.Println("Moving to city selection state")
 		m.State = StateCitySelect
 		return m, nil
+	case spinner.TickMsg:
+		var cmd tea.Cmd
+		m.Spinner, cmd = m.Spinner.Update(msg)
+		return m, cmd
 	}
 
 	return m, nil

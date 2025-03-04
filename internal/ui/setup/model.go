@@ -7,6 +7,7 @@ import (
 	"github.com/josephburgess/gust/internal/api"
 	"github.com/josephburgess/gust/internal/config"
 	"github.com/josephburgess/gust/internal/models"
+	"github.com/josephburgess/gust/internal/ui/components"
 	"github.com/josephburgess/gust/internal/ui/styles"
 )
 
@@ -60,6 +61,7 @@ type Model struct {
 	NeedsAuth       bool
 	Width, Height   int
 	Quitting        bool
+	Spinner         components.SpinnerModel
 }
 
 // creates a new setup model
@@ -115,11 +117,15 @@ func NewModel(cfg *config.Config, needsAuth bool, client *api.Client) Model {
 		AuthCursor:  0,
 		NeedsAuth:   needsAuth,
 		Quitting:    false,
+		Spinner:     components.NewSpinner(),
 	}
 }
 
 func (m Model) Init() tea.Cmd {
-	return textinput.Blink
+	return tea.Batch(
+		textinput.Blink,
+		m.Spinner.Tick(),
+	)
 }
 
 type (
