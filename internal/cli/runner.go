@@ -5,7 +5,7 @@ import (
 
 	"github.com/alecthomas/kong"
 	"github.com/josephburgess/gust/internal/config"
-	"github.com/josephburgess/gust/internal/ui/styles"
+	"github.com/josephburgess/gust/internal/ui/output"
 )
 
 func Run(ctx *kong.Context, cli *CLI) error {
@@ -30,7 +30,7 @@ func Run(ctx *kong.Context, cli *CLI) error {
 	needsAuth := authConfig == nil
 
 	if needsSetup(cli, cfg) {
-		styles.PrintInfo("Defaults not set, running setup...")
+		output.PrintInfo("Defaults not set, running setup...")
 		if err := handleSetup(cfg, &needsAuth); err != nil {
 			return err
 		}

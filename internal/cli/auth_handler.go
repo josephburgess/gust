@@ -4,10 +4,11 @@ import (
 	"fmt"
 
 	"github.com/josephburgess/gust/internal/config"
+	"github.com/josephburgess/gust/internal/ui/output"
 )
 
 func handleLogin(apiURL string) error {
-	fmt.Println("Starting GitHub authentication...")
+	output.PrintInfo("Starting GitHub authentication...")
 	authConfig, err := config.Authenticate(apiURL)
 	if err != nil {
 		return fmt.Errorf("authentication failed: %w", err)
@@ -17,12 +18,12 @@ func handleLogin(apiURL string) error {
 		return fmt.Errorf("failed to save authentication: %w", err)
 	}
 
-	fmt.Printf("Successfully authenticated as %s\n", authConfig.GithubUser)
+	output.PrintSuccess(fmt.Sprintf("Successfully authenticated as %s\n", authConfig.GithubUser))
 	return nil
 }
 
 func handleMissingAuth() error {
-	fmt.Println("You need to authenticate with GitHub before using Gust.")
-	fmt.Println("Run 'gust --login' to authenticate or 'gust --setup' to run the setup wizard.")
+	output.PrintError("You need to authenticate with GitHub before using Gust.")
+	output.PrintInfo("Run 'gust --login' to authenticate or 'gust --setup' to run the setup wizard.")
 	return fmt.Errorf("authentication required")
 }

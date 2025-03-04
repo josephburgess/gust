@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/josephburgess/gust/internal/templates"
+	"github.com/josephburgess/gust/internal/ui/output"
 )
 
 type AuthConfig struct {
@@ -92,9 +93,9 @@ func Authenticate(apiUrl string) (*AuthConfig, error) {
 		return nil, fmt.Errorf("failed to get auth URL: %w", err)
 	}
 
-	fmt.Printf("Opening browser for GitHub authentication...\n")
+	output.PrintInfo("Opening browser for GitHub authentication...\n")
 	if err := openBrowser(authURL); err != nil {
-		fmt.Printf("Could not open browser automatically. Please open this URL manually:\n%s\n", authURL)
+		output.PrintError(fmt.Sprintf("Could not open browser automatically. Please open this URL manually:\n%s\n", authURL))
 	}
 
 	select {
