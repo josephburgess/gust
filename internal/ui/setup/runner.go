@@ -4,12 +4,24 @@ import (
 	"fmt"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/josephburgess/gust/internal/api"
 	"github.com/josephburgess/gust/internal/config"
 )
 
 // entry pointfor setup wizard
 func RunSetup(cfg *config.Config, needsAuth bool) error {
-	model := NewModel(cfg, needsAuth)
+	fmt.Println("TEST")
+	var apiClient *api.Client
+
+	authConfig, err := config.LoadAuthConfig()
+	if err == nil && authConfig != nil {
+		fmt.Println("Creating API client with existing auth")
+		apiClient = api.NewClient(cfg.ApiUrl, authConfig.APIKey, cfg.Units)
+	} else {
+		fmt.Println("No auth config available, will skip city search")
+	}
+
+	model := NewModel(cfg, needsAuth, apiClient)
 	p := tea.NewProgram(model, tea.WithAltScreen())
 
 	finalModel, err := p.Run()

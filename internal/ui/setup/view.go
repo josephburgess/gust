@@ -26,6 +26,32 @@ func (m Model) buildContent() string {
 		sb.WriteString(m.CityInput.View() + "\n\n")
 		sb.WriteString(hintStyle.Render("Press Enter to continue"))
 
+	case StateCitySearch:
+		sb.WriteString(highlightStyle.Render("Searching for cities... 🔍") + "\n\n")
+		sb.WriteString("Please wait while we search for \"" + m.CitySearchQuery + "\"")
+
+	case StateCitySelect:
+		sb.WriteString(highlightStyle.Render("Select your city: 🏙️") + "\n\n")
+
+		if len(m.CityOptions) == 0 {
+			sb.WriteString("No cities found. Please try a different search term.\n\n")
+		} else {
+			for i, city := range m.CityOptions {
+				var line string
+				displayName := fmt.Sprintf("%s (%f, %f)", city.Name, city.Lat, city.Lon)
+
+				if m.CityCursor == i {
+					line = fmt.Sprintf("%s %s", cursorStyle.Render("→"), selectedItemStyle.Render(displayName))
+				} else {
+					line = fmt.Sprintf("  %s", displayName)
+				}
+				sb.WriteString(line + "\n")
+			}
+			sb.WriteString("\n")
+		}
+
+		sb.WriteString(hintStyle.Render("Press Enter to select or Esc to search again"))
+
 	case StateUnits:
 		sb.WriteString(highlightStyle.Render("Choose your preferred units: 🌡️") + "\n\n")
 		sb.WriteString(m.renderOptions(m.UnitOptions, m.UnitCursor))
