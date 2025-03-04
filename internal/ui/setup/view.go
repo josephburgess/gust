@@ -32,14 +32,26 @@ func (m Model) buildContent() string {
 		sb.WriteString("\n\n")
 
 	case StateCitySelect:
-		sb.WriteString(highlightStyle.Render("Select your city: 🏙️") + "\n\n")
+		sb.WriteString(highlightStyle.Render("Select your town or city: 🏙️") + "\n\n")
 
 		if len(m.CityOptions) == 0 {
 			sb.WriteString("No cities found. Please try a different search term.\n\n")
 		} else {
 			for i, city := range m.CityOptions {
 				var line string
-				displayName := fmt.Sprintf("%s (%f, %f)", city.Name, city.Lat, city.Lon)
+				var locationInfo string
+
+				if city.State != "" && city.Country != "" {
+					flag := getCountryEmoji(city.Country)
+					locationInfo = fmt.Sprintf("%s, %s %s", city.State, city.Country, flag)
+				} else if city.Country != "" {
+					flag := getCountryEmoji(city.Country)
+					locationInfo = fmt.Sprintf("%s %s", flag, locationInfo)
+				} else {
+					locationInfo = fmt.Sprintf("(%.4f, %.4f)", city.Lat, city.Lon)
+				}
+
+				displayName := fmt.Sprintf("%s - %s", city.Name, locationInfo)
 
 				if m.CityCursor == i {
 					line = fmt.Sprintf("%s %s", cursorStyle.Render("→"), selectedItemStyle.Render(displayName))
@@ -141,3 +153,26 @@ func (m Model) centerContent(content string) string {
 
 	return sb.String()
 }
+
+func getCountryEmoji(countryCode string) string {
+	if countryCode == "" {
+		return "🌍"
+	}
+
+	if len(countryCode) != 2 {
+		return "🌍"
+	}
+
+	cc := strings.ToUpper(countryCode)
+	const offset = 127397
+	firstLetter := rune(cc[0]) + offset
+	secondLetter := rune(cc[1]) + offset
+	flag := string(firstLetter) + string(secondLetter)
+
+	return flag
+}
+
+// Add helper functions to work with country names and emojis
+
+// GetCountryEmojiByName returns the flag emoji for a given country name
+// It converts the name to lowercase for case-insensitive matching
