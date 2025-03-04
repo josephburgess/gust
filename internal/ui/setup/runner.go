@@ -42,7 +42,7 @@ func RunSetup(cfg *config.Config, needsAuth bool) error {
 	if finalSetupModel.State == StateAuth && finalSetupModel.AuthCursor == 0 {
 		fmt.Println("Starting GitHub authentication...")
 
-		auth, err := config.Authenticate(cfg.APIURL)
+		auth, err := config.Authenticate(cfg.ApiUrl)
 		if err != nil {
 			return fmt.Errorf("authentication failed: %w", err)
 		}

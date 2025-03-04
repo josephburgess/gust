@@ -22,7 +22,7 @@ func TestLoadAndSave(t *testing.T) {
 
 	testConfig := &Config{
 		DefaultCity: "Tokyo",
-		APIURL:      "https://test-api.example.com",
+		ApiUrl:      "https://test-api.example.com",
 	}
 
 	err = testConfig.Save()
@@ -39,8 +39,8 @@ func TestLoadAndSave(t *testing.T) {
 		t.Errorf("Expected DefaultCity to be %s, got %s", testConfig.DefaultCity, loadedConfig.DefaultCity)
 	}
 
-	if loadedConfig.APIURL != testConfig.APIURL {
-		t.Errorf("Expected APIURL to be %s, got %s", testConfig.APIURL, loadedConfig.APIURL)
+	if loadedConfig.ApiUrl != testConfig.ApiUrl {
+		t.Errorf("Expected ApiUrl to be %s, got %s", testConfig.ApiUrl, loadedConfig.ApiUrl)
 	}
 }
 
@@ -71,8 +71,8 @@ func TestLoadNonExistentConfig(t *testing.T) {
 		t.Errorf("Expected empty DefaultCity, got %s", config.DefaultCity)
 	}
 
-	if config.APIURL != "" {
-		t.Errorf("Expected empty APIURL, got %s", config.APIURL)
+	if config.ApiUrl != "" {
+		t.Errorf("Expected empty ApiUrl, got %s", config.ApiUrl)
 	}
 }
 

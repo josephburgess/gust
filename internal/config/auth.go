@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/josephburgess/gust/internal/templates"
+	"github.com/josephburgess/gust/internal/ui/output"
 )
 
 type AuthConfig struct {
@@ -32,7 +33,6 @@ func defaultGetAuthConfigPath() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("could not get user home directory: %w", err)
 	}
-
 	return filepath.Join(homeDir, ".config", "gust", "auth.json"), nil
 }
 
@@ -43,8 +43,37 @@ func Authenticate(apiUrl string) (*AuthConfig, error) {
 
 	authDone := make(chan *AuthConfig)
 	errorChan := make(chan error)
-
 	port := 9876
+	server := startCallbackServer(port, apiUrl, authDone, errorChan)
+
+	defer func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		server.Shutdown(ctx)
+	}()
+
+	authURL, err := getAuthURL(apiUrl, port)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get auth URL: %w", err)
+	}
+
+	output.PrintInfo("Opening browser for GitHub authentication...")
+	if err := openBrowser(authURL); err != nil {
+		output.PrintError(fmt.Sprintf("Could not open browser automatically. Please open this URL manually:\n%s", authURL))
+	}
+
+	select {
+	case config := <-authDone:
+		return config, nil
+	case err := <-errorChan:
+		return nil, err
+	case <-time.After(5 * time.Minute):
+		return nil, fmt.Errorf("authentication timed out")
+	}
+}
+
+// simple server to handle the callback post auth
+func startCallbackServer(port int, apiUrl string, authDone chan<- *AuthConfig, errorChan chan<- error) *http.Server {
 	server := &http.Server{Addr: fmt.Sprintf(":%d", port)}
 
 	http.HandleFunc("/callback", func(w http.ResponseWriter, r *http.Request) {
@@ -64,8 +93,8 @@ func Authenticate(apiUrl string) (*AuthConfig, error) {
 			return
 		}
 
-		w.WriteHeader(http.StatusOK)
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.WriteHeader(http.StatusOK)
 
 		err = templates.RenderSuccessTemplate(w, apiConfig.GithubUser, apiConfig.APIKey, apiUrl)
 		if err != nil {
@@ -77,7 +106,7 @@ func Authenticate(apiUrl string) (*AuthConfig, error) {
 
 		go func() {
 			time.Sleep(100 * time.Millisecond)
-			server.Shutdown(context.TODO())
+			server.Shutdown(context.Background())
 		}()
 	})
 
@@ -87,24 +116,7 @@ func Authenticate(apiUrl string) (*AuthConfig, error) {
 		}
 	}()
 
-	authURL, err := getAuthURL(apiUrl, port)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get auth URL: %w", err)
-	}
-
-	fmt.Printf("Opening browser for GitHub authentication...\n")
-	if err := openBrowser(authURL); err != nil {
-		fmt.Printf("Could not open browser automatically. Please open this URL manually:\n%s\n", authURL)
-	}
-
-	select {
-	case config := <-authDone:
-		return config, nil
-	case err := <-errorChan:
-		return nil, err
-	case <-time.After(5 * time.Minute):
-		return nil, fmt.Errorf("authentication timed out")
-	}
+	return server
 }
 
 func getAuthURL(serverURL string, port int) (string, error) {
