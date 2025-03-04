@@ -8,7 +8,7 @@ type CLI struct {
 	City    string `name:"city" short:"C" help:"City name"`
 	Default string `name:"default" short:"D" help:"Set a new default city"`
 	Login   bool   `name:"login" short:"l" help:"Authenticate with GitHub"`
-	APIURL  string `name:"api" short:"a" help:"Set custom API server URL"`
+	ApiUrl  string `name:"api" short:"a" help:"Set custom API server URL"`
 	Setup   bool   `name:"setup" short:"s" help:"Run the setup wizard"`
 
 	Compact  bool   `name:"compact" short:"c" help:"Show today's compact weather view"`

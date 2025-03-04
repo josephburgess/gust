@@ -28,24 +28,24 @@ func Run(ctx *kong.Context, cli *CLI) error {
 		return fmt.Errorf("failed to load configuration: %w", err)
 	}
 
-	if cli.APIURL != "" {
-		cfg.APIURL = cli.APIURL
+	if cli.ApiUrl != "" {
+		cfg.ApiUrl = cli.ApiUrl
 		if err := cfg.Save(); err != nil {
 			return fmt.Errorf("failed to save configuration: %w", err)
 		}
-		fmt.Printf("API server URL set to: %s\n", cli.APIURL)
+		fmt.Printf("API server URL set to: %s\n", cli.ApiUrl)
 		return nil
 	}
 
-	if cfg.APIURL == "" {
-		cfg.APIURL = "https://breeze.joeburgess.dev"
+	if cfg.ApiUrl == "" {
+		cfg.ApiUrl = "https://breeze.joeburgess.dev"
 		if err := cfg.Save(); err != nil {
 			return fmt.Errorf("failed to save configuration: %w", err)
 		}
 	}
 
 	if cli.Login {
-		return handleLogin(cfg.APIURL)
+		return handleLogin(cfg.ApiUrl)
 	}
 
 	authConfig, err := config.LoadAuthConfig()
@@ -116,7 +116,7 @@ func Run(ctx *kong.Context, cli *CLI) error {
 		os.Exit(1)
 	}
 
-	client := api.NewClient(cfg.APIURL, authConfig.APIKey, cfg.Units)
+	client := api.NewClient(cfg.ApiUrl, authConfig.APIKey, cfg.Units)
 	weather, err := client.GetWeather(cityName)
 	if err != nil {
 		return fmt.Errorf("failed to get weather data: %w", err)

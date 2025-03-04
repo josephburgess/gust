@@ -9,7 +9,7 @@ import (
 
 type Config struct {
 	DefaultCity string `json:"default_city"`
-	APIURL      string `json:"api_url"`
+	ApiUrl      string `json:"api_url"`
 	Units       string `json:"units"`
 	DefaultView string `json:"default_view"`
 }
