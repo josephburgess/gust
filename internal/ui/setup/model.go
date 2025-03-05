@@ -4,7 +4,10 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/josephburgess/gust/internal/api"
 	"github.com/josephburgess/gust/internal/config"
+	"github.com/josephburgess/gust/internal/models"
+	"github.com/josephburgess/gust/internal/ui/components"
 	"github.com/josephburgess/gust/internal/ui/styles"
 )
 
@@ -13,6 +16,8 @@ type SetupState int
 
 const (
 	StateCity SetupState = iota
+	StateCitySearch
+	StateCitySelect
 	StateUnits
 	StateView
 	StateAuth
@@ -40,22 +45,27 @@ var (
 
 // current state of wizard
 type Model struct {
-	Config        *config.Config
-	State         SetupState
-	CityInput     textinput.Model
-	UnitOptions   []string
-	UnitCursor    int
-	ViewOptions   []string
-	ViewCursor    int
-	AuthOptions   []string
-	AuthCursor    int
-	NeedsAuth     bool
-	Width, Height int
-	Quitting      bool
+	Config          *config.Config
+	State           SetupState
+	CityInput       textinput.Model
+	CitySearchQuery string
+	CityOptions     []models.City
+	CityCursor      int
+	Client          *api.Client
+	UnitOptions     []string
+	UnitCursor      int
+	ViewOptions     []string
+	ViewCursor      int
+	AuthOptions     []string
+	AuthCursor      int
+	NeedsAuth       bool
+	Width, Height   int
+	Quitting        bool
+	Spinner         components.SpinnerModel
 }
 
 // creates a new setup model
-func NewModel(cfg *config.Config, needsAuth bool) Model {
+func NewModel(cfg *config.Config, needsAuth bool, client *api.Client) Model {
 	ti := textinput.New()
 	ti.Placeholder = "Wherever the wind blows..."
 	ti.Focus()
@@ -86,11 +96,15 @@ func NewModel(cfg *config.Config, needsAuth bool) Model {
 	}
 
 	return Model{
-		Config:      cfg,
-		State:       StateCity,
-		CityInput:   ti,
-		UnitOptions: []string{"metric (°C, km/h) 🌡️", "imperial (°F, mph) 🌡️", "standard (K, m/s) 🌡️"},
-		UnitCursor:  unitCursor,
+		Config:          cfg,
+		State:           StateCity,
+		CityInput:       ti,
+		CitySearchQuery: "",
+		CityOptions:     []models.City{},
+		CityCursor:      0,
+		Client:          client,
+		UnitOptions:     []string{"metric (°C, km/h) 🌡️", "imperial (°F, mph) 🌡️", "standard (K, m/s) 🌡️"},
+		UnitCursor:      unitCursor,
 		ViewOptions: []string{
 			"detailed 🌤️",
 			"compact 📊",
@@ -103,11 +117,15 @@ func NewModel(cfg *config.Config, needsAuth bool) Model {
 		AuthCursor:  0,
 		NeedsAuth:   needsAuth,
 		Quitting:    false,
+		Spinner:     components.NewSpinner(),
 	}
 }
 
 func (m Model) Init() tea.Cmd {
-	return textinput.Blink
+	return tea.Batch(
+		textinput.Blink,
+		m.Spinner.Tick(),
+	)
 }
 
 type (

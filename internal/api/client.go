@@ -61,3 +61,30 @@ func (c *Client) GetWeather(cityName string) (*WeatherResponse, error) {
 
 	return &response, nil
 }
+
+func (c *Client) SearchCities(query string) ([]models.City, error) {
+	endpoint := fmt.Sprintf(
+		"%s/api/cities/search?q=%s",
+		c.baseURL,
+		url.QueryEscape(query),
+	)
+
+	resp, err := c.client.Get(endpoint)
+	if err != nil {
+		fmt.Println("API request failed:", err)
+		return nil, fmt.Errorf("failed to connect to API: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("API error (%d): %s", resp.StatusCode, string(body))
+	}
+
+	var cities []models.City
+	if err := json.NewDecoder(resp.Body).Decode(&cities); err != nil {
+		return nil, fmt.Errorf("failed to decode API response: %w", err)
+	}
+
+	return cities, nil
+}
