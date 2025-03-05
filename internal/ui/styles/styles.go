@@ -51,6 +51,10 @@ var (
 			Border(lipgloss.RoundedBorder()).
 			BorderForeground(Iris).
 			Padding(1, 2)
+
+	ProgressMessageStyle = lipgloss.NewStyle().
+				Foreground(Foam).
+				Italic(true)
 )
 
 var (

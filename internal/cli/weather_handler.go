@@ -6,14 +6,26 @@ import (
 	"github.com/josephburgess/gust/internal/api"
 	"github.com/josephburgess/gust/internal/config"
 	"github.com/josephburgess/gust/internal/models"
+	"github.com/josephburgess/gust/internal/ui/components"
 	"github.com/josephburgess/gust/internal/ui/renderer"
+	"github.com/josephburgess/gust/internal/ui/styles"
 )
 
 func fetchAndRenderWeather(city string, cfg *config.Config, authConfig *config.AuthConfig, cli *CLI) error {
 	client := api.NewClient(cfg.ApiUrl, authConfig.APIKey, cfg.Units)
-	weather, err := client.GetWeather(city)
+
+	fetchFunc := func() (*api.WeatherResponse, error) {
+		weather, err := client.GetWeather(city)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get weather data: %w", err)
+		}
+		return weather, nil
+	}
+
+	message := fmt.Sprintf("Fetching weather for %s...", city)
+	weather, err := components.RunWithSpinner(message, components.WeatherEmojis, styles.Foam, fetchFunc)
 	if err != nil {
-		return fmt.Errorf("failed to get weather data: %w", err)
+		return err
 	}
 
 	weatherRenderer := renderer.NewWeatherRenderer("terminal", cfg.Units)
@@ -23,19 +35,20 @@ func fetchAndRenderWeather(city string, cfg *config.Config, authConfig *config.A
 }
 
 func renderWeatherView(cli *CLI, weatherRenderer renderer.WeatherRenderer, city *models.City, weather *models.OneCallResponse) {
-	if cli.Alerts {
+	switch {
+	case cli.Alerts:
 		weatherRenderer.RenderAlerts(city, weather)
-	} else if cli.Hourly {
+	case cli.Hourly:
 		weatherRenderer.RenderHourlyForecast(city, weather)
-	} else if cli.Daily {
+	case cli.Daily:
 		weatherRenderer.RenderDailyForecast(city, weather)
-	} else if cli.Full {
+	case cli.Full:
 		weatherRenderer.RenderFullWeather(city, weather)
-	} else if cli.Compact {
+	case cli.Compact:
 		weatherRenderer.RenderCompactWeather(city, weather)
-	} else if cli.Detailed {
+	case cli.Detailed:
 		weatherRenderer.RenderCurrentWeather(city, weather)
-	} else {
+	default:
 		weatherRenderer.RenderCurrentWeather(city, weather)
 	}
 }

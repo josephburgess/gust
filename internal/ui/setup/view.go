@@ -17,8 +17,8 @@ func (m Model) View() string {
 func (m Model) buildContent() string {
 	var sb strings.Builder
 
-	sb.WriteString(titleStyle.Render(asciiLogo) + "\n\n")
-	sb.WriteString(boxStyle.Render(subtitleStyle.Render("Simple terminal weather 🌤️")) + "\n\n")
+	sb.WriteString(logoBoxStyle.Render(asciiLogo) + "\n\n")
+	sb.WriteString(subtitleStyle.Render("Simple terminal weather 🌤️") + "\n\n")
 
 	switch m.State {
 	case StateCity:

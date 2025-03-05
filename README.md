@@ -48,34 +48,45 @@ mv gust /usr/local/bin/
 
 ## Usage
 
-Simply run the command:
+### Basic Commands
+
+```bash
+# Get weather for your default city
+gust
+
+# Get weather for a specific city
+gust london
+```
+
 <p align="center">
   <img src="https://github.com/user-attachments/assets/76695b8d-5e37-45a3-89cd-2d5b3401c323" width="600">
 </p>
 
-Or if you want to check a city other than the default you set, then just add the name:
+### Configuration Flags
 
-```bash
-gust london
-```
+_These flags modify settings and don't display weather by themselves_
 
-### Optional Parameters
+| Short | Long               | Description                                                |
+| ----- | ------------------ | ---------------------------------------------------------- |
+| `-h`  | `--help`           | Show help                                                  |
+| `-s`  | `--setup`          | Run the setup wizard                                       |
+| `-D`  | `--default=STRING` | Set a new default city                                     |
+| `-u`  | `--units=STRING`   | Set default temperature units (metric, imperial, standard) |
+| `-l`  | `--login`          | Authenticate with GitHub                                   |
+| `-A`  | `--api=STRING`     | Set custom API server URL (mostly for development)         |
 
-```
-gust --city london                   # Specify the name of a city other than your default
-gust --setup                         # Run the setup wizard again
-gust --default london                # Set a new default city
-gust --login                         # Authenticate with GitHub
-gust --logout                        # Log out and remove authentication
-gust --api https://...               # Set custom API server URL if you're using breeze locally
-gust --api https://...               # Set custom API server URL if you're using breeze locally
-gust --detailed                      # Show detailed forcast for today
-gust --compact                       # Show compact forecast for today
-gust --daily                         # Show 5 day forecast
-gust --hourly                        # Show 24hr forecast
-gust --alerts                        # Show weather alerts only
-gust --full london                   # Show detailed weather, plus any alerts, plus 5 day forecast
-```
+### Display Flags
+
+_These flags control how weather information is displayed_
+
+| Short | Long         | Description                                   |
+| ----- | ------------ | --------------------------------------------- |
+| `-c`  | `--compact`  | Show today's compact weather view             |
+| `-d`  | `--detailed` | Show today's detailed weather view            |
+| `-y`  | `--daily`    | Show 5-day forecast                           |
+| `-h`  | `--hourly`   | Show 24-hour (hourly) forecast                |
+| `-a`  | `--alerts`   | Show weather alerts                           |
+| `-f`  | `--full`     | Show today, 5-day and weather alert forecasts |
 
 ## Authentication
 
