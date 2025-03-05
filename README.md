@@ -13,7 +13,7 @@ A simple cli weather tool built with Go that provides weather forecasts in the t
 The easiest way to install gust at the moment is with Homebrew:
 
 ```sh
-brew tap josephburgess/tools
+brew tap josephburgess/formulae
 brew install gust
 ```
 
