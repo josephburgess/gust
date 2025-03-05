@@ -25,17 +25,18 @@ const (
 )
 
 const asciiLogo = `
-                        __
-      ____ ___  _______/ /_
-     / ** '/ / / / **_/ __/
-    / /_/ / /_/ (__  ) /_   _
-    \__, /\__,_/____/\__/  (_)
-   /____/                      `
+                         __
+       ____ ___  _______/ /_
+      / ** '/ / / / **_/ __/
+     / /_/ / /_/ (__  ) /_
+     \__, /\__,_/____/\__/   💨🍃
+    /____/                      `
 
 // setup ui styles
 var (
 	titleStyle        = lipgloss.NewStyle().Bold(true).Foreground(styles.Rose)
-	boxStyle          = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(styles.Iris).Padding(1, 2)
+	boxStyle          = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(styles.Iris).Padding(0, 1, 0, 1)
+	logoBoxStyle      = lipgloss.NewStyle().Border(lipgloss.DoubleBorder()).BorderForeground(styles.Subtle).Padding(0, 2, 2, 1).Foreground(styles.Foam)
 	subtitleStyle     = lipgloss.NewStyle().Foreground(styles.Gold)
 	highlightStyle    = lipgloss.NewStyle().Bold(true).Foreground(styles.Text)
 	cursorStyle       = lipgloss.NewStyle().Foreground(styles.Love)
