@@ -24,7 +24,7 @@ func (m Model) buildContent() string {
 	case StateCity:
 		sb.WriteString(highlightStyle.Render("Enter a default city 🏙️") + "\n\n")
 		sb.WriteString(m.CityInput.View() + "\n\n")
-		sb.WriteString(hintStyle.Render("Press Enter to continue"))
+		sb.WriteString(hintStyle.Render("You can enter a country code too, but use a comma! (e.g. London,GB)"))
 
 	case StateCitySearch:
 		sb.WriteString(highlightStyle.Render("Searching for cities...") + "\n\n")
