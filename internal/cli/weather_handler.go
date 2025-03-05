@@ -29,12 +29,12 @@ func fetchAndRenderWeather(city string, cfg *config.Config, authConfig *config.A
 	}
 
 	weatherRenderer := renderer.NewWeatherRenderer("terminal", cfg.Units)
-	renderWeatherView(cli, weatherRenderer, weather.City, weather.Weather)
+	renderWeatherView(cli, weatherRenderer, weather.City, weather.Weather, cfg)
 
 	return nil
 }
 
-func renderWeatherView(cli *CLI, weatherRenderer renderer.WeatherRenderer, city *models.City, weather *models.OneCallResponse) {
+func renderWeatherView(cli *CLI, weatherRenderer renderer.WeatherRenderer, city *models.City, weather *models.OneCallResponse, cfg *config.Config) {
 	switch {
 	case cli.Alerts:
 		weatherRenderer.RenderAlerts(city, weather)
@@ -49,6 +49,17 @@ func renderWeatherView(cli *CLI, weatherRenderer renderer.WeatherRenderer, city 
 	case cli.Detailed:
 		weatherRenderer.RenderCurrentWeather(city, weather)
 	default:
-		weatherRenderer.RenderCurrentWeather(city, weather)
+		switch cfg.DefaultView {
+		case "compact":
+			weatherRenderer.RenderCompactWeather(city, weather)
+		case "daily":
+			weatherRenderer.RenderDailyForecast(city, weather)
+		case "hourly":
+			weatherRenderer.RenderHourlyForecast(city, weather)
+		case "full":
+			weatherRenderer.RenderFullWeather(city, weather)
+		default:
+			weatherRenderer.RenderCurrentWeather(city, weather)
+		}
 	}
 }
