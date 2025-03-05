@@ -22,18 +22,17 @@ func Run(ctx *kong.Context, cli *CLI) error {
 		return handleLogin(cfg.ApiUrl)
 	}
 
-	authConfig, err := config.LoadAuthConfig()
-	if err != nil {
-		return fmt.Errorf("failed to reload configuration after setup: %w", err)
-	}
-
+	authConfig, _ := config.LoadAuthConfig()
 	needsAuth := authConfig == nil
 
 	if needsSetup(cli, cfg) {
 		output.PrintInfo("Defaults not set, running setup...")
-		if err := handleSetup(cfg, &needsAuth); err != nil {
+		needsAuth, err = handleSetup(cfg)
+		if err != nil {
 			return err
 		}
+
+		authConfig, _ = config.LoadAuthConfig()
 	}
 
 	if needsAuth {
