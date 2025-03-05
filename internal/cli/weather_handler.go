@@ -35,19 +35,20 @@ func fetchAndRenderWeather(city string, cfg *config.Config, authConfig *config.A
 }
 
 func renderWeatherView(cli *CLI, weatherRenderer renderer.WeatherRenderer, city *models.City, weather *models.OneCallResponse) {
-	if cli.Alerts {
+	switch {
+	case cli.Alerts:
 		weatherRenderer.RenderAlerts(city, weather)
-	} else if cli.Hourly {
+	case cli.Hourly:
 		weatherRenderer.RenderHourlyForecast(city, weather)
-	} else if cli.Daily {
+	case cli.Daily:
 		weatherRenderer.RenderDailyForecast(city, weather)
-	} else if cli.Full {
+	case cli.Full:
 		weatherRenderer.RenderFullWeather(city, weather)
-	} else if cli.Compact {
+	case cli.Compact:
 		weatherRenderer.RenderCompactWeather(city, weather)
-	} else if cli.Detailed {
+	case cli.Detailed:
 		weatherRenderer.RenderCurrentWeather(city, weather)
-	} else {
+	default:
 		weatherRenderer.RenderCurrentWeather(city, weather)
 	}
 }
