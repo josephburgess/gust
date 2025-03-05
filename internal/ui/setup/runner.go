@@ -8,17 +8,20 @@ import (
 	"github.com/josephburgess/gust/internal/config"
 )
 
-// entry pointfor setup wizard
+// entry point for setup wizard
 func RunSetup(cfg *config.Config, needsAuth bool) error {
-	fmt.Println("TEST")
 	var apiClient *api.Client
+
+	if cfg.ApiUrl == "" {
+		cfg.ApiUrl = "https://breeze.joeburgess.dev"
+	}
 
 	authConfig, err := config.LoadAuthConfig()
 	if err == nil && authConfig != nil {
-		fmt.Println("Creating API client with existing auth")
 		apiClient = api.NewClient(cfg.ApiUrl, authConfig.APIKey, cfg.Units)
 	} else {
-		fmt.Println("No auth config available, will skip city search")
+		// empty api key - dont need for setup
+		apiClient = api.NewClient(cfg.ApiUrl, "", cfg.Units)
 	}
 
 	model := NewModel(cfg, needsAuth, apiClient)
@@ -53,16 +56,13 @@ func RunSetup(cfg *config.Config, needsAuth bool) error {
 	// handle auth if chosen
 	if finalSetupModel.State == StateAuth && finalSetupModel.AuthCursor == 0 {
 		fmt.Println("Starting GitHub authentication...")
-
 		auth, err := config.Authenticate(cfg.ApiUrl)
 		if err != nil {
 			return fmt.Errorf("authentication failed: %w", err)
 		}
-
 		if err := config.SaveAuthConfig(auth); err != nil {
 			return fmt.Errorf("failed to save authentication: %w", err)
 		}
-
 		fmt.Printf("Successfully authenticated as %s\n", auth.GithubUser)
 	}
 

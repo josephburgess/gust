@@ -24,7 +24,7 @@ func Run(ctx *kong.Context, cli *CLI) error {
 
 	authConfig, err := config.LoadAuthConfig()
 	if err != nil {
-		return fmt.Errorf("failed to reload configuration after setup: %w", err)
+		fmt.Printf("Note: %v\n", err)
 	}
 
 	needsAuth := authConfig == nil
@@ -34,6 +34,18 @@ func Run(ctx *kong.Context, cli *CLI) error {
 		if err := handleSetup(cfg, &needsAuth); err != nil {
 			return err
 		}
+
+		newCfg, err := config.Load()
+		if err != nil {
+			return fmt.Errorf("failed to reload configuration after setup: %w", err)
+		}
+		cfg = newCfg
+
+		authConfig, err = config.LoadAuthConfig()
+		if err != nil {
+			return fmt.Errorf("failed to load auth config after setup: %w", err)
+		}
+		needsAuth = authConfig == nil
 	}
 
 	if needsAuth {

@@ -14,6 +14,11 @@ func needsSetup(cli *CLI, cfg *config.Config) bool {
 func handleSetup(cfg *config.Config, needsAuth *bool) error {
 	fmt.Println("Running setup wizard...")
 
+	if needsAuth == nil {
+		localNeedsAuth := true
+		needsAuth = &localNeedsAuth
+	}
+
 	if err := setup.RunSetup(cfg, *needsAuth); err != nil {
 		return fmt.Errorf("setup failed: %w", err)
 	}
