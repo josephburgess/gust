@@ -2,6 +2,7 @@ package models
 
 import (
 	"fmt"
+	"time"
 )
 
 type City struct {
@@ -170,4 +171,77 @@ func VisibilityToString(meters int) string {
 	} else {
 		return fmt.Sprintf("Poor (%.1f km)", float64(meters)/1000)
 	}
+}
+
+func GetWeatherTip(weather *OneCallResponse, units string) string {
+	current := weather.Current
+	hourly := weather.Hourly
+
+	if current.Snow != nil && current.Snow.OneHour > 0 {
+		return "It might be snowing right now! Stay warm and take care on slippery surfaces! ⛄"
+	}
+
+	if current.Rain != nil && current.Rain.OneHour > 0 {
+		return "It might be raining right now - don't go out without an umbrella! ☔"
+	}
+
+	for i, hour := range hourly {
+		if i > 0 && i < 12 { // next 12hrs
+			precipTime := time.Unix(hour.Dt, 0).Format("15:04")
+
+			if hour.Snow != nil && hour.Snow.OneHour > 0.1 {
+				return fmt.Sprintf("Snow expected around %s - dress warmly and wear appropriate footwear! ❄️", precipTime)
+			}
+
+			if (hour.Rain != nil && hour.Rain.OneHour > 0.5) || hour.Pop > 0.4 {
+				return fmt.Sprintf("Rain expected around %s - don't forget your umbrella! ☔", precipTime)
+			}
+		}
+	}
+
+	var coldThreshold, coolThreshold, warmThreshold float64
+
+	switch units {
+	case "imperial":
+		coldThreshold = 40 // 5C
+		coolThreshold = 55 // 12C
+		warmThreshold = 82 // 28C
+	case "standard":
+		coldThreshold = 278 // 5C
+		coolThreshold = 285 // 12C
+		warmThreshold = 301 // 28C
+	default:
+		coldThreshold = 5
+		coolThreshold = 12
+		warmThreshold = 28
+	}
+
+	if current.Temp < coldThreshold {
+		return "It's quite cold - wear a heavy coat and maybe a scarf! 🧣"
+	} else if current.Temp < coolThreshold {
+		return "It's cool today - a jacket would be a good idea. 🧥"
+	} else if current.Temp > warmThreshold {
+		return "It's hot today - stay hydrated and wear sunscreen! 🧴"
+	}
+
+	if current.UVI > 6 {
+		return "UV index is high - wear sunscreen and maybe a hat! 🧢"
+	}
+
+	var windThreshold float64
+
+	switch units {
+	case "imperial":
+		windThreshold = 12 // mph
+	case "standard":
+		windThreshold = 5.5 // m/s
+	default:
+		windThreshold = 20 // km/h
+	}
+
+	if current.WindSpeed > windThreshold {
+		return "It's quite windy today - secure any loose items outdoors! 💨"
+	}
+
+	return "Conditions look fine, enjoy your day! 🌤️"
 }

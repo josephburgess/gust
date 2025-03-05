@@ -41,12 +41,13 @@ func (r *TerminalRenderer) RenderCurrentWeather(city *models.City, weather *mode
 		r.displayPrecipitation(current.Rain, current.Snow)
 		fmt.Printf("Visibility: %s\n", models.VisibilityToString(current.Visibility))
 
-		fmt.Printf("Sunrise: %s %s  Sunset: %s %s\n\n",
+		fmt.Printf("Sunrise: %s %s  Sunset: %s %s\n",
 			time.Unix(current.Sunrise, 0).Format("15:04"),
 			"🌅",
 			time.Unix(current.Sunset, 0).Format("15:04"),
 			"🌇")
+		r.displayWeatherTip(weather)
+		fmt.Printf("\n")
 	}
-
 	r.displayAlertSummary(weather.Alerts, city.Name)
 }

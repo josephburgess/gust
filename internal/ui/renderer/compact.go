@@ -54,5 +54,6 @@ func (r *TerminalRenderer) RenderCompactWeather(city *models.City, weather *mode
 				styles.AlertStyle(fmt.Sprintf("⚠️ %d alerts", len(weather.Alerts))))
 		}
 		fmt.Println()
+		r.displayWeatherTip(weather)
 	}
 }

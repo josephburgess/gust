@@ -58,3 +58,8 @@ func (r *TerminalRenderer) displayAlertSummary(alerts []models.Alert, cityName s
 			cityName)
 	}
 }
+
+func (r *TerminalRenderer) displayWeatherTip(weather *models.OneCallResponse) {
+	tip := models.GetWeatherTip(weather, r.Units)
+	fmt.Printf("\n%s\n", styles.TipStyle(fmt.Sprintf("💡 %s", tip)))
+}
