@@ -4,12 +4,13 @@ import (
 	"testing"
 
 	"github.com/josephburgess/gust/internal/config"
+	"github.com/stretchr/testify/mock"
 )
 
 func TestRenderWeatherView_CLIFlags(t *testing.T) {
 	mockCity := createTestCity()
 	mockWeather := createTestWeather()
-	mockConfig := &config.Config{DefaultView: "compact"}
+	mockConfig := &config.Config{DefaultView: "compact", ShowTips: false}
 
 	testCases := []struct {
 		name           string
@@ -51,7 +52,7 @@ func TestRenderWeatherView_CLIFlags(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			mockRenderer := new(MockWeatherRenderer)
-			mockRenderer.On(tc.expectedMethod, mockCity, mockWeather).Return()
+			mockRenderer.On(tc.expectedMethod, mockCity, mockWeather, mockConfig).Return()
 
 			renderWeatherView(tc.cli, mockRenderer, mockCity, mockWeather, mockConfig)
 
@@ -105,7 +106,7 @@ func TestRenderWeatherView_DefaultView(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			mockRenderer := new(MockWeatherRenderer)
-			mockRenderer.On(tc.expectedFn, mockCity, mockWeather).Return()
+			mockRenderer.On(tc.expectedFn, mockCity, mockWeather, mock.Anything).Return()
 
 			config := &config.Config{DefaultView: tc.defaultView}
 			renderWeatherView(cli, mockRenderer, mockCity, mockWeather, config)
@@ -152,7 +153,7 @@ func TestRenderWeatherView_FlagsAndPriority(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			mockRenderer := new(MockWeatherRenderer)
-			mockRenderer.On(tc.expectedMethod, mockCity, mockWeather).Return()
+			mockRenderer.On(tc.expectedMethod, mockCity, mockWeather, mock.Anything).Return()
 
 			renderWeatherView(tc.cli, mockRenderer, mockCity, mockWeather, mockConfig)
 

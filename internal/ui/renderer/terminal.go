@@ -3,6 +3,7 @@ package renderer
 import (
 	"fmt"
 
+	"github.com/josephburgess/gust/internal/config"
 	"github.com/josephburgess/gust/internal/models"
 	"github.com/josephburgess/gust/internal/ui/styles"
 )
@@ -59,7 +60,10 @@ func (r *TerminalRenderer) displayAlertSummary(alerts []models.Alert, cityName s
 	}
 }
 
-func (r *TerminalRenderer) displayWeatherTip(weather *models.OneCallResponse) {
+func (r *TerminalRenderer) displayWeatherTip(weather *models.OneCallResponse, cfg *config.Config) {
+	if !cfg.ShowTips {
+		return
+	}
 	tip := models.GetWeatherTip(weather, r.Units)
 	fmt.Printf("\n%s\n", styles.TipStyle(fmt.Sprintf("💡 %s", tip)))
 }

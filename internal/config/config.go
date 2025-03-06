@@ -12,6 +12,7 @@ type Config struct {
 	ApiUrl      string `json:"api_url"`
 	Units       string `json:"units"`
 	DefaultView string `json:"default_view"`
+	ShowTips    bool   `json:"show_tips"`
 }
 
 type GetConfigPathFunc func() (string, error)

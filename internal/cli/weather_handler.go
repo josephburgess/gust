@@ -37,29 +37,29 @@ func fetchAndRenderWeather(city string, cfg *config.Config, authConfig *config.A
 func renderWeatherView(cli *CLI, weatherRenderer renderer.WeatherRenderer, city *models.City, weather *models.OneCallResponse, cfg *config.Config) {
 	switch {
 	case cli.Alerts:
-		weatherRenderer.RenderAlerts(city, weather)
+		weatherRenderer.RenderAlerts(city, weather, cfg)
 	case cli.Hourly:
-		weatherRenderer.RenderHourlyForecast(city, weather)
+		weatherRenderer.RenderHourlyForecast(city, weather, cfg)
 	case cli.Daily:
-		weatherRenderer.RenderDailyForecast(city, weather)
+		weatherRenderer.RenderDailyForecast(city, weather, cfg)
 	case cli.Full:
-		weatherRenderer.RenderFullWeather(city, weather)
+		weatherRenderer.RenderFullWeather(city, weather, cfg)
 	case cli.Compact:
-		weatherRenderer.RenderCompactWeather(city, weather)
+		weatherRenderer.RenderCompactWeather(city, weather, cfg)
 	case cli.Detailed:
-		weatherRenderer.RenderCurrentWeather(city, weather)
+		weatherRenderer.RenderCurrentWeather(city, weather, cfg)
 	default:
 		switch cfg.DefaultView {
 		case "compact":
-			weatherRenderer.RenderCompactWeather(city, weather)
+			weatherRenderer.RenderCompactWeather(city, weather, cfg)
 		case "daily":
-			weatherRenderer.RenderDailyForecast(city, weather)
+			weatherRenderer.RenderDailyForecast(city, weather, cfg)
 		case "hourly":
-			weatherRenderer.RenderHourlyForecast(city, weather)
+			weatherRenderer.RenderHourlyForecast(city, weather, cfg)
 		case "full":
-			weatherRenderer.RenderFullWeather(city, weather)
+			weatherRenderer.RenderFullWeather(city, weather, cfg)
 		default:
-			weatherRenderer.RenderCurrentWeather(city, weather)
+			weatherRenderer.RenderCurrentWeather(city, weather, cfg)
 		}
 	}
 }

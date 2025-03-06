@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/josephburgess/gust/internal/config"
 	"github.com/josephburgess/gust/internal/models"
 	"github.com/josephburgess/gust/internal/ui/styles"
 )
@@ -63,8 +64,13 @@ func TestRenderCurrentWeather(t *testing.T) {
 		},
 	}
 
+	cfg := &config.Config{
+		Units:    "metric",
+		ShowTips: true,
+	}
+
 	renderer := NewTerminalRenderer("metric")
-	renderer.RenderCurrentWeather(city, weather)
+	renderer.RenderCurrentWeather(city, weather, cfg)
 
 	w.Close()
 	var buf bytes.Buffer
@@ -107,8 +113,13 @@ func TestRenderAlerts(t *testing.T) {
 		},
 	}
 
+	cfg := &config.Config{
+		Units:    "metric",
+		ShowTips: true,
+	}
+
 	renderer := NewTerminalRenderer("")
-	renderer.RenderAlerts(city, weather)
+	renderer.RenderAlerts(city, weather, cfg)
 
 	w.Close()
 	var buf bytes.Buffer
@@ -142,8 +153,13 @@ func TestRenderAlertsNoAlerts(t *testing.T) {
 		Alerts: []models.Alert{},
 	}
 
+	cfg := &config.Config{
+		Units:    "metric",
+		ShowTips: true,
+	}
+
 	renderer := NewTerminalRenderer("")
-	renderer.RenderAlerts(city, weather)
+	renderer.RenderAlerts(city, weather, cfg)
 
 	w.Close()
 	var buf bytes.Buffer

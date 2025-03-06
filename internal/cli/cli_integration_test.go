@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/josephburgess/gust/internal/api"
+	"github.com/josephburgess/gust/internal/config"
 	"github.com/josephburgess/gust/internal/models"
 	"github.com/josephburgess/gust/internal/ui/renderer"
 	"github.com/stretchr/testify/assert"
@@ -70,9 +71,10 @@ func TestWeatherFlowIntegration(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			mockClient := new(MockWeatherClient)
 			mockRenderer := new(MockWeatherRenderer)
+			mockConfig := &config.Config{ShowTips: true}
 
 			mockClient.On("GetWeather", tc.expectedCity).Return(weatherResponse, nil)
-			mockRenderer.On("RenderCompactWeather", cityData, weatherData).Return()
+			mockRenderer.On("RenderCompactWeather", cityData, weatherData, mockConfig).Return()
 
 			cli := &CLI{
 				City: tc.cityFlag,
@@ -87,37 +89,37 @@ func TestWeatherFlowIntegration(t *testing.T) {
 			assert.NoError(t, err)
 			assert.Equal(t, weatherResponse, weather)
 
-			testRenderWeatherView := func(cli *CLI, renderer renderer.WeatherRenderer, city *models.City, weather *models.OneCallResponse, defaultView string) {
+			testRenderWeatherView := func(cli *CLI, renderer renderer.WeatherRenderer, city *models.City, weather *models.OneCallResponse, defaultView string, cfg *config.Config) {
 				switch {
 				case cli.Alerts:
-					renderer.RenderAlerts(city, weather)
+					renderer.RenderAlerts(city, weather, cfg)
 				case cli.Hourly:
-					renderer.RenderHourlyForecast(city, weather)
+					renderer.RenderHourlyForecast(city, weather, cfg)
 				case cli.Daily:
-					renderer.RenderDailyForecast(city, weather)
+					renderer.RenderDailyForecast(city, weather, cfg)
 				case cli.Full:
-					renderer.RenderFullWeather(city, weather)
+					renderer.RenderFullWeather(city, weather, cfg)
 				case cli.Compact:
-					renderer.RenderCompactWeather(city, weather)
+					renderer.RenderCompactWeather(city, weather, cfg)
 				case cli.Detailed:
-					renderer.RenderCurrentWeather(city, weather)
+					renderer.RenderCurrentWeather(city, weather, cfg)
 				default:
 					switch defaultView {
 					case "compact":
-						renderer.RenderCompactWeather(city, weather)
+						renderer.RenderCompactWeather(city, weather, cfg)
 					case "daily":
-						renderer.RenderDailyForecast(city, weather)
+						renderer.RenderDailyForecast(city, weather, cfg)
 					case "hourly":
-						renderer.RenderHourlyForecast(city, weather)
+						renderer.RenderHourlyForecast(city, weather, cfg)
 					case "full":
-						renderer.RenderFullWeather(city, weather)
+						renderer.RenderFullWeather(city, weather, cfg)
 					default:
-						renderer.RenderCurrentWeather(city, weather)
+						renderer.RenderCurrentWeather(city, weather, cfg)
 					}
 				}
 			}
 
-			testRenderWeatherView(cli, mockRenderer, weather.City, weather.Weather, "compact")
+			testRenderWeatherView(cli, mockRenderer, weather.City, weather.Weather, "compact", mockConfig)
 
 			mockClient.AssertExpectations(t)
 			mockRenderer.AssertExpectations(t)
@@ -128,10 +130,7 @@ func TestWeatherFlowIntegration(t *testing.T) {
 func TestViewSelectionIntegration(t *testing.T) {
 	mockCity := &models.City{Name: "TestCity"}
 	mockWeather := &models.OneCallResponse{}
-
-	type fakeConfig struct {
-		DefaultView string
-	}
+	mockConfig := &config.Config{ShowTips: true}
 
 	testCases := []struct {
 		name           string
@@ -168,60 +167,71 @@ func TestViewSelectionIntegration(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			mockRenderer := new(MockWeatherRenderer)
-			config := &fakeConfig{DefaultView: tc.defaultView}
+			fakeConfig := &struct {
+				DefaultView string
+				ShowTips    bool
+			}{
+				DefaultView: tc.defaultView,
+				ShowTips:    true,
+			}
 
 			switch tc.expectedMethod {
 			case "RenderHourlyForecast":
-				mockRenderer.On("RenderHourlyForecast", mockCity, mockWeather).Return()
+				mockRenderer.On("RenderHourlyForecast", mockCity, mockWeather, mockConfig).Return()
 			case "RenderDailyForecast":
-				mockRenderer.On("RenderDailyForecast", mockCity, mockWeather).Return()
+				mockRenderer.On("RenderDailyForecast", mockCity, mockWeather, mockConfig).Return()
 			case "RenderFullWeather":
-				mockRenderer.On("RenderFullWeather", mockCity, mockWeather).Return()
+				mockRenderer.On("RenderFullWeather", mockCity, mockWeather, mockConfig).Return()
 			case "RenderCompactWeather":
-				mockRenderer.On("RenderCompactWeather", mockCity, mockWeather).Return()
+				mockRenderer.On("RenderCompactWeather", mockCity, mockWeather, mockConfig).Return()
 			case "RenderCurrentWeather":
-				mockRenderer.On("RenderCurrentWeather", mockCity, mockWeather).Return()
+				mockRenderer.On("RenderCurrentWeather", mockCity, mockWeather, mockConfig).Return()
 			case "RenderAlerts":
-				mockRenderer.On("RenderAlerts", mockCity, mockWeather).Return()
+				mockRenderer.On("RenderAlerts", mockCity, mockWeather, mockConfig).Return()
 			}
 
 			testRenderWeatherView := func(cli *CLI, renderer renderer.WeatherRenderer, city *models.City, weather *models.OneCallResponse, cfg any) {
-				configObj, ok := cfg.(*fakeConfig)
+				configObj, _ := cfg.(*struct {
+					DefaultView string
+					ShowTips    bool
+				})
 				var defaultView string
-				if ok {
+				if configObj != nil {
 					defaultView = configObj.DefaultView
 				}
 
+				realConfig := &config.Config{ShowTips: true}
+
 				switch {
 				case cli.Alerts:
-					renderer.RenderAlerts(city, weather)
+					renderer.RenderAlerts(city, weather, realConfig)
 				case cli.Hourly:
-					renderer.RenderHourlyForecast(city, weather)
+					renderer.RenderHourlyForecast(city, weather, realConfig)
 				case cli.Daily:
-					renderer.RenderDailyForecast(city, weather)
+					renderer.RenderDailyForecast(city, weather, realConfig)
 				case cli.Full:
-					renderer.RenderFullWeather(city, weather)
+					renderer.RenderFullWeather(city, weather, realConfig)
 				case cli.Compact:
-					renderer.RenderCompactWeather(city, weather)
+					renderer.RenderCompactWeather(city, weather, realConfig)
 				case cli.Detailed:
-					renderer.RenderCurrentWeather(city, weather)
+					renderer.RenderCurrentWeather(city, weather, realConfig)
 				default:
 					switch defaultView {
 					case "compact":
-						renderer.RenderCompactWeather(city, weather)
+						renderer.RenderCompactWeather(city, weather, realConfig)
 					case "daily":
-						renderer.RenderDailyForecast(city, weather)
+						renderer.RenderDailyForecast(city, weather, realConfig)
 					case "hourly":
-						renderer.RenderHourlyForecast(city, weather)
+						renderer.RenderHourlyForecast(city, weather, realConfig)
 					case "full":
-						renderer.RenderFullWeather(city, weather)
+						renderer.RenderFullWeather(city, weather, realConfig)
 					default:
-						renderer.RenderCurrentWeather(city, weather)
+						renderer.RenderCurrentWeather(city, weather, realConfig)
 					}
 				}
 			}
 
-			testRenderWeatherView(tc.cli, mockRenderer, mockCity, mockWeather, config)
+			testRenderWeatherView(tc.cli, mockRenderer, mockCity, mockWeather, fakeConfig)
 
 			mockRenderer.AssertExpectations(t)
 		})

@@ -120,6 +120,10 @@ func (m Model) handleEnterKey() (tea.Model, tea.Cmd) {
 	case StateView:
 		viewValues := []string{"default", "compact", "daily", "hourly", "full"}
 		m.Config.DefaultView = viewValues[m.ViewCursor]
+		m.State = StateTips
+
+	case StateTips:
+		m.Config.ShowTips = (m.TipCursor == 0)
 
 		if m.NeedsAuth {
 			m.State = StateAuth
@@ -166,6 +170,10 @@ func (m Model) handleUpKey() (tea.Model, tea.Cmd) {
 		if m.CityCursor > 0 {
 			m.CityCursor--
 		}
+	case StateTips:
+		if m.TipCursor > 0 {
+			m.TipCursor--
+		}
 	}
 	return m, nil
 }
@@ -187,6 +195,10 @@ func (m Model) handleDownKey() (tea.Model, tea.Cmd) {
 	case StateCitySelect:
 		if m.CityCursor < len(m.CityOptions)-1 {
 			m.CityCursor++
+		}
+	case StateTips:
+		if m.TipCursor < len(m.TipOptions)-1 {
+			m.TipCursor++
 		}
 	}
 	return m, nil

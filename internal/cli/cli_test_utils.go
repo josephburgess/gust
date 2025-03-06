@@ -12,28 +12,28 @@ type MockWeatherRenderer struct {
 	mock.Mock
 }
 
-func (m *MockWeatherRenderer) RenderCurrentWeather(city *models.City, weather *models.OneCallResponse) {
-	m.Called(city, weather)
+func (m *MockWeatherRenderer) RenderCurrentWeather(city *models.City, weather *models.OneCallResponse, cfg *config.Config) {
+	m.Called(city, weather, cfg)
 }
 
-func (m *MockWeatherRenderer) RenderDailyForecast(city *models.City, weather *models.OneCallResponse) {
-	m.Called(city, weather)
+func (m *MockWeatherRenderer) RenderDailyForecast(city *models.City, weather *models.OneCallResponse, cfg *config.Config) {
+	m.Called(city, weather, cfg)
 }
 
-func (m *MockWeatherRenderer) RenderHourlyForecast(city *models.City, weather *models.OneCallResponse) {
-	m.Called(city, weather)
+func (m *MockWeatherRenderer) RenderHourlyForecast(city *models.City, weather *models.OneCallResponse, cfg *config.Config) {
+	m.Called(city, weather, cfg)
 }
 
-func (m *MockWeatherRenderer) RenderAlerts(city *models.City, weather *models.OneCallResponse) {
-	m.Called(city, weather)
+func (m *MockWeatherRenderer) RenderAlerts(city *models.City, weather *models.OneCallResponse, cfg *config.Config) {
+	m.Called(city, weather, cfg)
 }
 
-func (m *MockWeatherRenderer) RenderFullWeather(city *models.City, weather *models.OneCallResponse) {
-	m.Called(city, weather)
+func (m *MockWeatherRenderer) RenderFullWeather(city *models.City, weather *models.OneCallResponse, cfg *config.Config) {
+	m.Called(city, weather, cfg)
 }
 
-func (m *MockWeatherRenderer) RenderCompactWeather(city *models.City, weather *models.OneCallResponse) {
-	m.Called(city, weather)
+func (m *MockWeatherRenderer) RenderCompactWeather(city *models.City, weather *models.OneCallResponse, cfg *config.Config) {
+	m.Called(city, weather, cfg)
 }
 
 // auth config handling
