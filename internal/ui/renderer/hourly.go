@@ -6,11 +6,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/josephburgess/gust/internal/config"
 	"github.com/josephburgess/gust/internal/models"
 	"github.com/josephburgess/gust/internal/ui/styles"
 )
 
-func (r *TerminalRenderer) RenderHourlyForecast(city *models.City, weather *models.OneCallResponse) {
+func (r *TerminalRenderer) RenderHourlyForecast(city *models.City, weather *models.OneCallResponse, config *config.Config) {
 	fmt.Print(styles.FormatHeader(fmt.Sprintf("24H FORECAST FOR %s", strings.ToUpper(city.Name))))
 
 	if len(weather.Hourly) > 0 {

@@ -86,6 +86,16 @@ func (m Model) buildContent() string {
 		sb.WriteString(fmt.Sprintf("Default city: %s 🏙️\n", m.Config.DefaultCity))
 		sb.WriteString(fmt.Sprintf("Units: %s 🌡️\n", m.Config.Units))
 		sb.WriteString(fmt.Sprintf("Default view: %s 📊\n", m.Config.DefaultView))
+		if m.Config.ShowTips {
+			sb.WriteString("Tips enabled 💡\n")
+		} else {
+			sb.WriteString("Tips disabled 💡\n")
+		}
+
+	case StateTips:
+		sb.WriteString(highlightStyle.Render("Would you like tips shown on daily forecasts? 💡") + "\n\n")
+		sb.WriteString(m.renderOptions(m.TipOptions, m.TipCursor))
+		sb.WriteString("\n" + hintStyle.Render("Press Enter to confirm"))
 
 		if m.NeedsAuth {
 			authStatus := "Authenticated ✅"

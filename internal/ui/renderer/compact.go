@@ -5,11 +5,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/josephburgess/gust/internal/config"
 	"github.com/josephburgess/gust/internal/models"
 	"github.com/josephburgess/gust/internal/ui/styles"
 )
 
-func (r *TerminalRenderer) RenderCompactWeather(city *models.City, weather *models.OneCallResponse) {
+func (r *TerminalRenderer) RenderCompactWeather(city *models.City, weather *models.OneCallResponse, cfg *config.Config) {
 	current := weather.Current
 
 	fmt.Print(styles.FormatHeader(fmt.Sprintf("%s WEATHER", strings.ToUpper(city.Name))))
@@ -54,5 +55,6 @@ func (r *TerminalRenderer) RenderCompactWeather(city *models.City, weather *mode
 				styles.AlertStyle(fmt.Sprintf("⚠️ %d alerts", len(weather.Alerts))))
 		}
 		fmt.Println()
+		r.displayWeatherTip(weather, cfg)
 	}
 }

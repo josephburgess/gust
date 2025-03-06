@@ -20,6 +20,7 @@ const (
 	StateCitySelect
 	StateUnits
 	StateView
+	StateTips
 	StateAuth
 	StateComplete
 )
@@ -59,6 +60,8 @@ type Model struct {
 	ViewCursor      int
 	AuthOptions     []string
 	AuthCursor      int
+	TipOptions      []string
+	TipCursor       int
 	NeedsAuth       bool
 	Width, Height   int
 	Quitting        bool
@@ -109,11 +112,13 @@ func NewModel(cfg *config.Config, needsAuth bool, client *api.Client) Model {
 		ViewOptions: []string{
 			"detailed 🌤️",
 			"compact 📊",
-			"daily (5-day) 📆",
-			"hourly (24-hour forecast) 🕒",
-			"full (current + daily + alerts) 📋",
+			"5-day 📆",
+			"24-hour 🕒",
+			"full (current + 5-day + alerts) 📋",
 		},
 		ViewCursor:  viewCursor,
+		TipOptions:  []string{"Yes, show weather tips", "No, don't show tips"},
+		TipCursor:   0,
 		AuthOptions: []string{"Yes, authenticate with GitHub 🔑", "No, I'll do it later ⏱️"},
 		AuthCursor:  0,
 		NeedsAuth:   needsAuth,

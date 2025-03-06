@@ -5,11 +5,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/josephburgess/gust/internal/config"
 	"github.com/josephburgess/gust/internal/models"
 	"github.com/josephburgess/gust/internal/ui/styles"
 )
 
-func (r *TerminalRenderer) RenderCurrentWeather(city *models.City, weather *models.OneCallResponse) {
+func (r *TerminalRenderer) RenderCurrentWeather(city *models.City, weather *models.OneCallResponse, cfg *config.Config) {
 	current := weather.Current
 
 	fmt.Print(styles.FormatHeader(fmt.Sprintf("WEATHER FOR %s", strings.ToUpper(city.Name))))
@@ -41,12 +42,13 @@ func (r *TerminalRenderer) RenderCurrentWeather(city *models.City, weather *mode
 		r.displayPrecipitation(current.Rain, current.Snow)
 		fmt.Printf("Visibility: %s\n", models.VisibilityToString(current.Visibility))
 
-		fmt.Printf("Sunrise: %s %s  Sunset: %s %s\n\n",
+		fmt.Printf("Sunrise: %s %s  Sunset: %s %s\n",
 			time.Unix(current.Sunrise, 0).Format("15:04"),
 			"🌅",
 			time.Unix(current.Sunset, 0).Format("15:04"),
 			"🌇")
+		r.displayWeatherTip(weather, cfg)
+		fmt.Printf("\n")
 	}
-
 	r.displayAlertSummary(weather.Alerts, city.Name)
 }

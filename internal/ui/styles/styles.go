@@ -59,6 +59,7 @@ var (
 
 var (
 	HeaderStyle     = color.New(color.FgHiCyan, color.Bold).SprintFunc()
+	TipStyle        = color.New(color.FgHiBlue, color.Italic).SprintFunc()
 	TempStyle       = color.New(color.FgHiYellow, color.Bold).SprintFunc()
 	HighlightStyleF = color.New(color.FgHiWhite).SprintFunc()
 	InfoStyle       = color.New(color.FgHiBlue).SprintFunc()

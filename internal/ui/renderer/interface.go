@@ -1,16 +1,17 @@
 package renderer
 
 import (
+	"github.com/josephburgess/gust/internal/config"
 	"github.com/josephburgess/gust/internal/models"
 )
 
 type WeatherRenderer interface {
-	RenderCurrentWeather(city *models.City, weather *models.OneCallResponse)
-	RenderDailyForecast(city *models.City, weather *models.OneCallResponse)
-	RenderHourlyForecast(city *models.City, weather *models.OneCallResponse)
-	RenderAlerts(city *models.City, weather *models.OneCallResponse)
-	RenderFullWeather(city *models.City, weather *models.OneCallResponse)
-	RenderCompactWeather(city *models.City, weather *models.OneCallResponse)
+	RenderCurrentWeather(city *models.City, weather *models.OneCallResponse, cfg *config.Config)
+	RenderDailyForecast(city *models.City, weather *models.OneCallResponse, cfg *config.Config)
+	RenderHourlyForecast(city *models.City, weather *models.OneCallResponse, cfg *config.Config)
+	RenderAlerts(city *models.City, weather *models.OneCallResponse, cfg *config.Config)
+	RenderFullWeather(city *models.City, weather *models.OneCallResponse, cfg *config.Config)
+	RenderCompactWeather(city *models.City, weather *models.OneCallResponse, cfg *config.Config)
 }
 
 func NewWeatherRenderer(rendererType string, units string) WeatherRenderer {
