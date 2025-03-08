@@ -1,5 +1,3 @@
-// Update the internal/cli/weather_handler.go file
-
 package cli
 
 import (

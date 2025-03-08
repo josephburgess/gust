@@ -60,8 +60,7 @@ func PrintRateLimitError(limit int, resetTime time.Time) {
 		"%s API Rate Limit Reached\n\n"+
 			"You have used all %d available requests.\n"+
 			"Your rate limit will reset at %s (%d minutes from now).\n\n"+
-			"%s To get more data, please wait until the limit resets.",
-		styles.ErrorStyle("❌"),
+			styles.ErrorStyle("❌"),
 		limit,
 		styles.TimeStyle(resetFormatted),
 		minutesUntilReset,
