@@ -1,3 +1,5 @@
+// Update the internal/cli/weather_handler.go file
+
 package cli
 
 import (
@@ -9,6 +11,7 @@ import (
 	"github.com/josephburgess/gust/internal/config"
 	"github.com/josephburgess/gust/internal/models"
 	"github.com/josephburgess/gust/internal/ui/components"
+	"github.com/josephburgess/gust/internal/ui/output"
 	"github.com/josephburgess/gust/internal/ui/renderer"
 	"github.com/josephburgess/gust/internal/ui/styles"
 )
@@ -32,7 +35,7 @@ func fetchAndRenderWeather(city string, cfg *config.Config, authConfig *config.A
 
 	if client.RateLimitInfo != nil && client.RateLimitInfo.Limit > 0 {
 		if err != nil && strings.Contains(strings.ToLower(err.Error()), "rate limit") {
-			displayRateLimitError(0, client.RateLimitInfo.Limit, client.RateLimitInfo.ResetTime)
+			output.PrintRateLimitError(client.RateLimitInfo.Limit, client.RateLimitInfo.ResetTime)
 
 			timeUntilReset := time.Until(client.RateLimitInfo.ResetTime)
 			if timeUntilReset > 0 {
@@ -51,22 +54,13 @@ func fetchAndRenderWeather(city string, cfg *config.Config, authConfig *config.A
 			return fmt.Errorf("rate limit reached, please try again later")
 		}
 
-		if client.RateLimitInfo.Remaining <= 0 {
-			displayRateLimitError(0, client.RateLimitInfo.Limit, client.RateLimitInfo.ResetTime)
-		} else if client.RateLimitInfo.Remaining <= 5 {
-			displayRateLimitWarning(
+		if client.RateLimitInfo.Remaining <= 5 && client.RateLimitInfo.Remaining > 0 {
+			output.PrintRateLimitWarning(
 				client.RateLimitInfo.Remaining,
 				client.RateLimitInfo.Limit,
 				client.RateLimitInfo.ResetTime,
 			)
 		}
-
-		defer func() {
-			if client.RateLimitInfo.Remaining > 5 {
-				fmt.Println()
-				displayRateLimitStatus(client.RateLimitInfo.Remaining, client.RateLimitInfo.Limit)
-			}
-		}()
 	}
 
 	if err != nil {
@@ -77,74 +71,6 @@ func fetchAndRenderWeather(city string, cfg *config.Config, authConfig *config.A
 	renderWeatherView(cli, weatherRenderer, weather.City, weather.Weather, cfg)
 
 	return nil
-}
-
-func displayRateLimitWarning(remaining, limit int, resetTime time.Time) {
-	timeUntilReset := time.Until(resetTime)
-	minutesUntilReset := int(timeUntilReset.Minutes())
-	resetFormatted := resetTime.Format("15:04")
-
-	fmt.Println()
-	fmt.Println(styles.BoxStyle.Render(fmt.Sprintf(
-		"%s API Rate Limit Warning\n\n"+
-			"You have %s requests remaining out of %d.\n"+
-			"Your rate limit will reset at %s (%d minutes from now).",
-		styles.WarningStyle("⚠️"),
-		styles.HighlightStyleF(fmt.Sprintf("%d", remaining)),
-		limit,
-		styles.TimeStyle(resetFormatted),
-		minutesUntilReset,
-	)))
-	fmt.Println()
-}
-
-func displayRateLimitError(remaining, limit int, resetTime time.Time) {
-	timeUntilReset := time.Until(resetTime)
-	minutesUntilReset := int(timeUntilReset.Minutes())
-	resetFormatted := resetTime.Format("15:04")
-
-	fmt.Println()
-	fmt.Println(styles.BoxStyle.BorderForeground(styles.Love).Render(fmt.Sprintf(
-		"%s API Rate Limit Reached\n\n"+
-			"You have used all %d available requests.\n"+
-			"Your rate limit will reset at %s (%d minutes from now).\n\n"+
-			"%s To get more data, please wait until the limit resets.",
-		styles.ErrorStyle("❌"),
-		limit,
-		styles.TimeStyle(resetFormatted),
-		minutesUntilReset,
-		styles.InfoStyle("💡"),
-	)))
-	fmt.Println()
-}
-
-func displayRateLimitStatus(remaining, limit int) {
-	if limit <= 0 {
-		return
-	}
-
-	const barWidth = 20
-	used := limit - remaining
-
-	filledCount := min(int(float64(used)/float64(limit)*barWidth), barWidth)
-
-	emptyCount := barWidth - filledCount
-
-	filled := styles.HighlightStyleF(strings.Repeat("█", filledCount))
-	empty := strings.Repeat("░", emptyCount)
-
-	percentage := float64(used) / float64(limit) * 100
-
-	var usageText string
-	if percentage >= 90 {
-		usageText = styles.ErrorStyle(fmt.Sprintf("%.0f%% used", percentage))
-	} else if percentage >= 75 {
-		usageText = styles.WarningStyle(fmt.Sprintf("%.0f%% used", percentage))
-	} else {
-		usageText = styles.InfoStyle(fmt.Sprintf("%.0f%% used", percentage))
-	}
-
-	fmt.Printf("API Usage: [%s%s] %s (%d/%d)\n", filled, empty, usageText, used, limit)
 }
 
 func renderWeatherView(cli *CLI, weatherRenderer renderer.WeatherRenderer, city *models.City, weather *models.OneCallResponse, cfg *config.Config) {

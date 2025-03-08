@@ -68,13 +68,6 @@ func (c *Client) extractRateLimitInfo(resp *http.Response) {
 			c.RateLimitInfo.ResetTime = time.Now().Add(time.Hour)
 		}
 	}
-
-	if c.RateLimitInfo.Limit > 0 {
-		fmt.Printf("DEBUG: Rate limit: %d/%d, Reset: %s\n",
-			c.RateLimitInfo.Remaining,
-			c.RateLimitInfo.Limit,
-			c.RateLimitInfo.ResetTime.Format(time.RFC3339))
-	}
 }
 
 func (c *Client) GetWeather(cityName string) (*WeatherResponse, error) {
@@ -124,17 +117,9 @@ func (c *Client) SearchCities(query string) ([]models.City, error) {
 
 	resp, err := c.client.Get(endpoint)
 	if err != nil {
-		fmt.Println("API request failed:", err)
 		return nil, fmt.Errorf("failed to connect to API: %w", err)
 	}
 	defer resp.Body.Close()
-
-	c.extractRateLimitInfo(resp)
-
-	if resp.StatusCode == http.StatusTooManyRequests {
-		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("rate limit exceeded: %s", string(body))
-	}
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
