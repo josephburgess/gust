@@ -38,10 +38,9 @@ func PrintRateLimitWarning(remaining, limit int, resetTime time.Time) {
 
 	fmt.Println()
 	fmt.Println(styles.BoxStyle.Render(fmt.Sprintf(
-		"%s API Rate Limit Warning\n\n"+
+		"⚠️ API Rate Limit Warning\n\n"+
 			"You have %s requests remaining out of %d.\n"+
 			"Your rate limit will reset at %s (%d minutes from now).",
-		styles.WarningStyle("⚠️"),
 		styles.HighlightStyleF(fmt.Sprintf("%d", remaining)),
 		limit,
 		styles.TimeStyle(resetFormatted),
@@ -57,14 +56,14 @@ func PrintRateLimitError(limit int, resetTime time.Time) {
 
 	fmt.Println()
 	fmt.Println(styles.BoxStyle.BorderForeground(styles.Love).Render(fmt.Sprintf(
-		"%s API Rate Limit Reached\n\n"+
-			"You have used all %d available requests.\n"+
+		"❌ API Rate Limit Reached\n\n"+
+			"Sorry - you have used all %d available requests.\n"+
+			"You must really like checking the weather!!\n"+
 			"Your rate limit will reset at %s (%d minutes from now).\n\n"+
-			styles.ErrorStyle("❌"),
+			"💡 If you think the limits are too low please get in touch :)",
 		limit,
 		styles.TimeStyle(resetFormatted),
 		minutesUntilReset,
-		styles.InfoStyle("💡"),
 	)))
 	fmt.Println()
 }
