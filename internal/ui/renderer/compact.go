@@ -16,7 +16,7 @@ func (r *TerminalRenderer) RenderCompactWeather(city *models.City, weather *mode
 	if len(current.Weather) > 0 {
 		weatherCond := current.Weather[0]
 		tempUnit := r.GetTemperatureUnit()
-		weatherEmoji := models.GetWeatherEmoji(weatherCond.ID, &current)
+		emoji := models.GetWeatherEmoji(weatherCond.ID, &current)
 		temp := styles.TempStyle(fmt.Sprintf("%.1f%s", current.Temp, tempUnit))
 
 		extraSpace := ""
@@ -26,7 +26,7 @@ func (r *TerminalRenderer) RenderCompactWeather(city *models.City, weather *mode
 		fmt.Printf("🌡️ %-16s%s         %s %-s\n",
 			temp,
 			extraSpace,
-			weatherEmoji,
+			emoji,
 			styles.HighlightStyleF(weatherCond.Description))
 
 		windUnit := r.GetWindSpeedUnit()
