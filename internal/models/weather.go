@@ -133,7 +133,11 @@ type Alert struct {
 	Tags        []string `json:"tags"`
 }
 
-func GetWeatherEmoji(id int) string {
+func GetWeatherEmoji(id int, current *CurrentWeather) string {
+	if id == 800 && current != nil && (current.Dt > current.Sunset || current.Dt < current.Sunrise) {
+		return "🌙" // clear night
+	}
+
 	switch {
 	case id >= 200 && id <= 232:
 		return "⚡" // storm
@@ -146,7 +150,7 @@ func GetWeatherEmoji(id int) string {
 	case id >= 700 && id <= 781:
 		return "🌫" // fog
 	case id == 800:
-		return "🔆" // clear
+		return "🔆" // clear (daytime)
 	case id >= 801 && id <= 804:
 		return "🌥️" // cloudy
 	default:

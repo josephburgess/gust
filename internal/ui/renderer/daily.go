@@ -44,7 +44,7 @@ func (r *TerminalRenderer) RenderDailyForecast(city *models.City, weather *model
 
 			if len(day.Weather) > 0 {
 				weather := day.Weather[0]
-				condition := fmt.Sprintf("%s %s", weather.Description, models.GetWeatherEmoji(weather.ID))
+				condition := fmt.Sprintf("%s %s", weather.Description, models.GetWeatherEmoji(weather.ID, nil))
 				fmt.Printf("  Conditions: %s\n", styles.InfoStyle(condition))
 			}
 

@@ -54,7 +54,7 @@ func (r *TerminalRenderer) RenderHourlyForecast(city *models.City, weather *mode
 				hourStr,
 				temp,
 				extraSpace,
-				models.GetWeatherEmoji(weatherCond.ID),
+				models.GetWeatherEmoji(weatherCond.ID, nil),
 				styles.InfoStyle(weatherCond.Description),
 				popStr)
 
