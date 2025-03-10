@@ -62,31 +62,33 @@ gust london
   <img src="https://github.com/user-attachments/assets/76695b8d-5e37-45a3-89cd-2d5b3401c323" width="600">
 </p>
 
-### Configuration Flags
+## Configuration Flags
 
-_These flags modify settings and don't display weather by themselves_
+_These flags modify user config / settings and don't display weather by themselves_
 
 | Short | Long               | Description                                                |
 | ----- | ------------------ | ---------------------------------------------------------- |
 | `-h`  | `--help`           | Show help                                                  |
-| `-s`  | `--setup`          | Run the setup wizard                                       |
-| `-D`  | `--default=STRING` | Set a new default city                                     |
-| `-u`  | `--units=STRING`   | Set default temperature units (metric, imperial, standard) |
-| `-l`  | `--login`          | Authenticate with GitHub                                   |
+| `-S`  | `--setup`          | Run the setup wizard                                       |
 | `-A`  | `--api=STRING`     | Set custom API server URL (mostly for development)         |
+| `-C`  | `--city=STRING`    | Specify city name                                          |
+| `-D`  | `--default=STRING` | Set a new default city                                     |
+| `-U`  | `--units=STRING`   | Set default temperature units (metric, imperial, standard) |
+| `-L`  | `--login`          | Authenticate with GitHub                                   |
 
-### Display Flags
+## Display Flags
 
 _These flags control how weather information is displayed_
 
 | Short | Long         | Description                                   |
 | ----- | ------------ | --------------------------------------------- |
+| `-a`  | `--alerts`   | Show weather alerts                           |
 | `-c`  | `--compact`  | Show today's compact weather view             |
 | `-d`  | `--detailed` | Show today's detailed weather view            |
-| `-y`  | `--daily`    | Show 5-day forecast                           |
-| `-h`  | `--hourly`   | Show 24-hour (hourly) forecast                |
-| `-a`  | `--alerts`   | Show weather alerts                           |
 | `-f`  | `--full`     | Show today, 5-day and weather alert forecasts |
+| `-r`  | `--hourly`   | Show 24-hour (hourly) forecast                |
+| `-p`  | `--pretty`   | Use the pretty UI                             |
+| `-y`  | `--daily`    | Show 5-day forecast                           |
 
 ## Authentication
 
