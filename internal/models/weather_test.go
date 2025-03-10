@@ -21,10 +21,43 @@ func TestGetWeatherEmoji(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		result := GetWeatherEmoji(test.id)
+		result := GetWeatherEmoji(test.id, nil)
 		if result != test.expected {
 			t.Errorf("GetWeatherEmoji(%d) = %s, expected %s", test.id, result, test.expected)
 		}
+	}
+
+	dayCurrent := &CurrentWeather{
+		Dt:      1615900000, // between sunrise/sunset
+		Sunrise: 1615890000,
+		Sunset:  1615940000,
+	}
+
+	dayResult := GetWeatherEmoji(800, dayCurrent)
+	if dayResult != "🔆" {
+		t.Errorf("GetWeatherEmoji(800, dayCurrent) = %s, expected 🔆", dayResult)
+	}
+
+	eveningCurrent := &CurrentWeather{
+		Dt:      1615950000, // post-sunset
+		Sunrise: 1615890000,
+		Sunset:  1615940000,
+	}
+
+	eveningResult := GetWeatherEmoji(800, eveningCurrent)
+	if eveningResult != "🌙" {
+		t.Errorf("GetWeatherEmoji(800, eveningCurrent) = %s, expected 🌙", eveningResult)
+	}
+
+	morningCurrent := &CurrentWeather{
+		Dt:      1615880000, // Before sunrise
+		Sunrise: 1615890000,
+		Sunset:  1615940000,
+	}
+
+	morningResult := GetWeatherEmoji(800, morningCurrent)
+	if morningResult != "🌙" {
+		t.Errorf("GetWeatherEmoji(800, morningCurrent) = %s, expected 🌙", morningResult)
 	}
 }
 
