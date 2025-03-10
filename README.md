@@ -87,7 +87,6 @@ _These flags control how weather information is displayed_
 | `-d`  | `--detailed` | Show today's detailed weather view            |
 | `-f`  | `--full`     | Show today, 5-day and weather alert forecasts |
 | `-r`  | `--hourly`   | Show 24-hour (hourly) forecast                |
-| `-p`  | `--pretty`   | Use the pretty UI                             |
 | `-y`  | `--daily`    | Show 5-day forecast                           |
 
 ## Authentication

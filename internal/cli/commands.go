@@ -20,7 +20,7 @@ type CLI struct {
 	Daily    bool `name:"daily" short:"y" help:"Show 5-day forecast"`
 	Hourly   bool `name:"hourly" short:"r" help:"Show 24-hour (hourly) forecast"`
 	Alerts   bool `name:"alerts" short:"a" help:"Show weather alerts"`
-	Pretty   bool `name:"pretty" short:"p" hidden:"" help:"Use the pretty UI - tbc"`
+	Pretty   bool `name:"pretty" short:"p" hidden:"" help:"Use the pretty UI - tbc"` // TODO: not implemented yet but including it here to keep me motivated
 
 	// args (city name)
 	Args []string `arg:"" optional:"" help:"City name (can be multiple words)"`
