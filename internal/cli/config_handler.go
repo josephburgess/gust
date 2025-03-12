@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/josephburgess/gust/internal/config"
 )
@@ -12,6 +13,28 @@ func handleConfigUpdates(cli *CLI, cfg *config.Config) (bool, error) {
 
 	if cli.ApiUrl != "" {
 		cfg.ApiUrl = cli.ApiUrl
+		updated = true
+	}
+
+	if cli.ApiKey != "" {
+		authConfig, _ := config.LoadAuthConfig()
+
+		newAuthConfig := &config.AuthConfig{
+			APIKey:     cli.ApiKey,
+			ServerURL:  cfg.ApiUrl,
+			LastAuth:   time.Now(),
+			GithubUser: "",
+		}
+
+		if authConfig != nil {
+			newAuthConfig.GithubUser = authConfig.GithubUser
+		}
+
+		if err := config.SaveAuthConfig(newAuthConfig); err != nil {
+			return false, fmt.Errorf("failed to save API key: %w", err)
+		}
+
+		fmt.Println("API key updated.")
 		updated = true
 	}
 

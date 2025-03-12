@@ -12,6 +12,7 @@ type CLI struct {
 	Login   bool   `name:"login" short:"L" help:"Authenticate with GitHub"`
 	Setup   bool   `name:"setup" short:"S" help:"Run the setup wizard"`
 	Units   string `name:"units" short:"U" help:"Temperature units (metric, imperial, standard)"`
+	ApiKey  string `name:"api-key" short:"K" help:"Set your api key (either gust or openweathermap)"`
 
 	// display flags
 	Compact  bool `name:"compact" short:"c" help:"Show today's compact weather view"`
