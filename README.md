@@ -48,6 +48,8 @@ mv gust /usr/local/bin/
 
 ## Usage
 
+The first time you run gust a first-time configuration wizard will get you set up in no time.
+
 ### Basic Commands
 
 ```bash
