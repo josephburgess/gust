@@ -7,10 +7,31 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
+func ClearViewport(width, height int) string {
+	var sb strings.Builder
+
+	blankLine := strings.Repeat(" ", width)
+	for i := 0; i < height; i++ {
+		sb.WriteString(blankLine + "\n")
+	}
+
+	sb.WriteString("\033[H")
+
+	return sb.String()
+}
+
 // rendr current state of setup wizard
 func (m Model) View() string {
+	var result strings.Builder
+
+	if m.Width > 0 && m.Height > 0 {
+		result.WriteString(ClearViewport(m.Width, m.Height))
+	}
+
 	content := m.buildContent()
-	return m.centerContent(content)
+	result.WriteString(m.centerContent(content))
+
+	return result.String()
 }
 
 // create correct content for currnet state
@@ -105,16 +126,15 @@ func (m Model) buildContent() string {
 			sb.WriteString(fmt.Sprintf("GitHub: %s\n", authStatus))
 		}
 
-		sb.WriteString("\n" + hintStyle.Render("Press any key to continue"))
 	case StateApiKeyOption:
-		sb.WriteString(highlightStyle.Render("Choose API method: 🔑") + "\n\n")
+		sb.WriteString(highlightStyle.Render("Choose auth method: 🔑") + "\n\n")
 		sb.WriteString(m.renderOptions(m.ApiKeyOptions, m.ApiKeyCursor))
 		sb.WriteString("\n" + hintStyle.Render("Press Enter to confirm"))
 
 	case StateApiKeyInput:
-		sb.WriteString(highlightStyle.Render("Enter your OpenWeather API key: 🔑") + "\n\n")
+		sb.WriteString(highlightStyle.Render("Enter your OpenWeatherMap API key: 🔑") + "\n\n")
 		sb.WriteString(m.ApiKeyInput.View() + "\n\n")
-		sb.WriteString(hintStyle.Render("Get your API key from openweathermap.org"))
+		sb.WriteString(hintStyle.Render("Get your API key from https://home.openweathermap.org/subscriptions/unauth_subscribe/onecall_30/base"))
 
 	}
 
