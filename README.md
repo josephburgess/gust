@@ -75,6 +75,7 @@ _These flags modify user config / settings and don't display weather by themselv
 | `-D`  | `--default=STRING` | Set a new default city                                     |
 | `-U`  | `--units=STRING`   | Set default temperature units (metric, imperial, standard) |
 | `-L`  | `--login`          | Authenticate with GitHub                                   |
+| `-K`  | `--api-key`        | Set your api key (either gust, or openweathermap)          |
 
 ## Display Flags
 
@@ -91,15 +92,21 @@ _These flags control how weather information is displayed_
 
 ## Authentication
 
-Gust uses a proxy api I set up and host privately, [breeze](http://github.com/josephburgess/breeze), to fetch weather data. This keeps the setup flow pretty frictionless for new users.
+gust uses a proxy api I set up and host privately, [breeze](http://github.com/josephburgess/breeze), to fetch weather data. This keeps the setup flow pretty frictionless for new users.
 
-When you first run Gust, it will:
+When you first run gust:
 
-1. Take you through a setup wizard
-2. Prompt you to authenticate with GitHub
-3. Open your browser for the authentication process
-4. Automatically store your API key for future use
+1. A setup wizard will guide you through the initial configuration
+2. You'll be prompted to choose an authentication method:
+   - GitHub OAuth (one click sign up/in)
+   - Your own OpenWeather Map API key if you prefer not to use Oauth or need much higher rate limits
+3. If you choose GitHub OAuth:
+   - Your default browser will open to complete authentication
+   - No need to manually obtain or manage API keys
+4. Your credentials will be securely stored locally for future use in `~/.config/gust/auth.json`
 
-After the initial setup, authentication is fully automatic and your API key will be securely stored locally.
+After this one-time setup, authentication happens automatically whenever you use the app.
 
-If for some reason any of this fails you should be able to attempt to setup/login again with the flags above.
+## Troubleshooting
+
+If you encounter any auth issues, you can re-run the setup wizard or use the `-L / --login` (Oauth) `-K / --api-key` (api key) flags to re-set your key or check the local config files.
