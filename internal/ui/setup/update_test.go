@@ -283,22 +283,13 @@ func TestEnterKeyHandling(t *testing.T) {
 			expectedState: StateTips,
 		},
 		{
-			name: "tips to complete (no auth needed)",
-			setupModel: func() Model {
-				m := NewModel(&config.Config{}, false, &api.Client{})
-				m.State = StateTips
-				return m
-			},
-			expectedState: StateComplete,
-		},
-		{
-			name: "tips to auth (auth needed)",
+			name: "tips to auth choices",
 			setupModel: func() Model {
 				m := NewModel(&config.Config{}, true, &api.Client{})
 				m.State = StateTips
 				return m
 			},
-			expectedState: StateAuth,
+			expectedState: StateApiKeyOption,
 		},
 		{
 			name: "auth to complete (no auth selected)",
