@@ -22,6 +22,8 @@ const (
 	StateView
 	StateTips
 	StateAuth
+	StateApiKeyOption
+	StateApiKeyInput
 	StateComplete
 )
 
@@ -66,6 +68,9 @@ type Model struct {
 	Width, Height   int
 	Quitting        bool
 	Spinner         components.SpinnerModel
+	ApiKeyOptions   []string
+	ApiKeyCursor    int
+	ApiKeyInput     textinput.Model
 }
 
 // creates a new setup model
@@ -78,6 +83,14 @@ func NewModel(cfg *config.Config, needsAuth bool, client *api.Client) Model {
 	ti.PromptStyle = lipgloss.NewStyle().Foreground(styles.Love)
 	ti.TextStyle = lipgloss.NewStyle().Foreground(styles.Text)
 	ti.Cursor.Style = lipgloss.NewStyle().Foreground(styles.Gold)
+
+	apiKeyInput := textinput.New()
+	apiKeyInput.Placeholder = "Paste your OpenWeather API key here..."
+	apiKeyInput.CharLimit = 64
+	apiKeyInput.Width = len(apiKeyInput.Placeholder)
+	apiKeyInput.PromptStyle = lipgloss.NewStyle().Foreground(styles.Love)
+	apiKeyInput.TextStyle = lipgloss.NewStyle().Foreground(styles.Text)
+	apiKeyInput.Cursor.Style = lipgloss.NewStyle().Foreground(styles.Gold)
 
 	unitCursor := 0
 	switch cfg.Units {
@@ -124,6 +137,12 @@ func NewModel(cfg *config.Config, needsAuth bool, client *api.Client) Model {
 		NeedsAuth:   needsAuth,
 		Quitting:    false,
 		Spinner:     components.NewSpinner(),
+		ApiKeyOptions: []string{
+			"Use gust's authentication (recommended)",
+			"Use my own OpenWeatherMap API key",
+		},
+		ApiKeyCursor: 0,
+		ApiKeyInput:  apiKeyInput,
 	}
 }
 

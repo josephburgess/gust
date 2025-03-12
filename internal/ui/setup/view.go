@@ -106,6 +106,16 @@ func (m Model) buildContent() string {
 		}
 
 		sb.WriteString("\n" + hintStyle.Render("Press any key to continue"))
+	case StateApiKeyOption:
+		sb.WriteString(highlightStyle.Render("Choose API method: 🔑") + "\n\n")
+		sb.WriteString(m.renderOptions(m.ApiKeyOptions, m.ApiKeyCursor))
+		sb.WriteString("\n" + hintStyle.Render("Press Enter to confirm"))
+
+	case StateApiKeyInput:
+		sb.WriteString(highlightStyle.Render("Enter your OpenWeather API key: 🔑") + "\n\n")
+		sb.WriteString(m.ApiKeyInput.View() + "\n\n")
+		sb.WriteString(hintStyle.Render("Get your API key from openweathermap.org"))
+
 	}
 
 	// footer

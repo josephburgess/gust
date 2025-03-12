@@ -2,9 +2,11 @@ package setup
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/josephburgess/gust/internal/config"
 	"github.com/josephburgess/gust/internal/models"
 )
 
@@ -27,14 +29,49 @@ func (m Model) searchCities() tea.Cmd {
 	}
 }
 
+func (m Model) handleApiKeyInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "ctrl+c":
+		m.Quitting = true
+		return m, tea.Quit
+	case "enter":
+		if m.ApiKeyInput.Value() != "" {
+			authConfig := &config.AuthConfig{
+				APIKey:     m.ApiKeyInput.Value(),
+				ServerURL:  m.Config.ApiUrl,
+				LastAuth:   time.Now(),
+				GithubUser: "OpenWeather API User",
+			}
+
+			if err := config.SaveAuthConfig(authConfig); err != nil {
+				fmt.Printf("Error: %v\n", err)
+			} else {
+				m.NeedsAuth = false
+			}
+		}
+		m.State = StateComplete
+		return m, nil
+	case "esc":
+		m.State = StateApiKeyOption
+		return m, nil
+	}
+
+	var cmd tea.Cmd
+	m.ApiKeyInput, cmd = m.ApiKeyInput.Update(msg)
+	return m, cmd
+}
+
 // updates the model based on messages
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		if m.State == StateCity {
+		switch m.State {
+		case StateCity:
 			return m.handleTextInput(msg)
+		case StateApiKeyInput:
+			return m.handleApiKeyInput(msg)
 		}
 		return m.handleKeyPress(msg)
 	case tea.WindowSizeMsg:
@@ -45,6 +82,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case CitiesSearchResult:
 		if msg.err != nil {
+			fmt.Printf("Error searching cities: %v\n", msg.err)
 			m.State = StateCity
 			return m, nil
 		}
@@ -53,6 +91,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.CityCursor = 0
 
 		if len(m.CityOptions) == 0 {
+			fmt.Println("No cities found. Please try a different search.")
 			m.State = StateCity
 			return m, nil
 		}
@@ -64,9 +103,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.Spinner, spinnerCmd = m.Spinner.Update(msg)
 		cmds = append(cmds, spinnerCmd)
 	default:
-		if m.State == StateCity {
+		switch m.State {
+		case StateCity:
 			var tiCmd tea.Cmd
 			m.CityInput, tiCmd = m.CityInput.Update(msg)
+			if tiCmd != nil {
+				cmds = append(cmds, tiCmd)
+			}
+		case StateApiKeyInput:
+			var tiCmd tea.Cmd
+			m.ApiKeyInput, tiCmd = m.ApiKeyInput.Update(msg)
 			if tiCmd != nil {
 				cmds = append(cmds, tiCmd)
 			}
@@ -124,12 +170,36 @@ func (m Model) handleEnterKey() (tea.Model, tea.Cmd) {
 
 	case StateTips:
 		m.Config.ShowTips = (m.TipCursor == 0)
+		m.State = StateApiKeyOption
 
-		if m.NeedsAuth {
-			m.State = StateAuth
+	case StateApiKeyOption:
+		if m.ApiKeyCursor == 0 {
+			if m.NeedsAuth {
+				m.State = StateAuth
+			} else {
+				m.State = StateComplete
+			}
 		} else {
-			m.State = StateComplete
+			m.State = StateApiKeyInput
+			m.ApiKeyInput.Focus()
 		}
+
+	case StateApiKeyInput:
+		if m.ApiKeyInput.Value() != "" {
+			authConfig := &config.AuthConfig{
+				APIKey:     m.ApiKeyInput.Value(),
+				ServerURL:  m.Config.ApiUrl,
+				LastAuth:   time.Now(),
+				GithubUser: "",
+			}
+
+			if err := config.SaveAuthConfig(authConfig); err != nil {
+				fmt.Printf("Error: %v\n", err)
+			} else {
+				m.NeedsAuth = false
+			}
+		}
+		m.State = StateComplete
 
 	case StateAuth:
 		if err := m.Config.Save(); err != nil {
@@ -174,6 +244,10 @@ func (m Model) handleUpKey() (tea.Model, tea.Cmd) {
 		if m.TipCursor > 0 {
 			m.TipCursor--
 		}
+	case StateApiKeyOption:
+		if m.ApiKeyCursor > 0 {
+			m.ApiKeyCursor--
+		}
 	}
 	return m, nil
 }
@@ -199,6 +273,10 @@ func (m Model) handleDownKey() (tea.Model, tea.Cmd) {
 	case StateTips:
 		if m.TipCursor < len(m.TipOptions)-1 {
 			m.TipCursor++
+		}
+	case StateApiKeyOption:
+		if m.ApiKeyCursor < len(m.ApiKeyOptions)-1 {
+			m.ApiKeyCursor++
 		}
 	}
 	return m, nil
