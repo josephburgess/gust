@@ -100,6 +100,8 @@ When you first run gust:
 2. You'll be prompted to choose an authentication method:
    - GitHub OAuth (one click sign up/in)
    - Your own OpenWeather Map API key if you prefer not to use Oauth or need much higher rate limits
+     - User submitted keys will need to be eligible for the [One Call API 3.0](https://openweathermap.org/api/one-call-3#how)
+     - The first 1000 calls every day are free but they ask for CC info to get a key
 3. If you choose GitHub OAuth:
    - Your default browser will open to complete authentication
    - No need to manually obtain or manage API keys
