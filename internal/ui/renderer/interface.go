@@ -14,6 +14,6 @@ type WeatherRenderer interface {
 	RenderCompactWeather(city *models.City, weather *models.OneCallResponse, cfg *config.Config)
 }
 
-func NewWeatherRenderer(rendererType string, units string) WeatherRenderer {
+func NewWeatherRenderer(units string) WeatherRenderer {
 	return NewTerminalRenderer(units)
 }
