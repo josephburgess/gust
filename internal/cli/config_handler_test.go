@@ -1,118 +1,98 @@
 package cli
 
 import (
-	"fmt"
+	"path/filepath"
 	"testing"
 
 	"github.com/josephburgess/gust/internal/config"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-func TestIsValidUnit(t *testing.T) {
-	validUnits := []string{"metric", "imperial", "standard"}
-	invalidUnits := []string{"celsius", "", "Metric"}
-
-	for _, unit := range validUnits {
-		t.Run("Valid: "+unit, func(t *testing.T) {
-			assert.True(t, isValidUnit(unit))
-		})
+func withTempConfig(t *testing.T) {
+	t.Helper()
+	orig := config.GetConfigPath
+	t.Cleanup(func() { config.GetConfigPath = orig })
+	config.GetConfigPath = func() (string, error) {
+		return filepath.Join(t.TempDir(), "config.json"), nil
 	}
+}
 
-	for _, unit := range invalidUnits {
-		t.Run("Invalid: "+unit, func(t *testing.T) {
-			assert.False(t, isValidUnit(unit))
-		})
+func TestIsValidUnit(t *testing.T) {
+	for _, unit := range []string{"metric", "imperial", "standard"} {
+		assert.True(t, isValidUnit(unit), "expected %q to be valid", unit)
+	}
+	for _, unit := range []string{"celsius", "", "Metric"} {
+		assert.False(t, isValidUnit(unit), "expected %q to be invalid", unit)
 	}
 }
 
 func TestHandleConfigUpdates(t *testing.T) {
-	createConfig := func() *config.Config {
-		return &config.Config{
-			ApiUrl:      "https://api.example.com",
-			Units:       "metric",
-			DefaultCity: "London",
-		}
+	withTempConfig(t)
+
+	newConfig := func() *config.Config {
+		return &config.Config{ApiUrl: "https://api.example.com", Units: "metric", DefaultCity: "London"}
 	}
 
-	testCases := []struct {
-		name            string
-		cli             *CLI
-		expectedUpdated bool
-		configMutator   func(*config.Config)
+	tests := []struct {
+		name        string
+		cli         *CLI
+		wantUpdated bool
+		check       func(*testing.T, *config.Config)
 	}{
 		{
-			name: "update api url",
-			cli: &CLI{
-				ApiUrl: "https://test-api.example.com",
-			},
-			expectedUpdated: true,
-			configMutator: func(c *config.Config) {
-				c.ApiUrl = "https://test-api.example.com"
+			name:        "update api url",
+			cli:         &CLI{ApiUrl: "https://new.example.com"},
+			wantUpdated: true,
+			check: func(t *testing.T, c *config.Config) {
+				assert.Equal(t, "https://new.example.com", c.ApiUrl)
 			},
 		},
 		{
-			name: "update units",
-			cli: &CLI{
-				Units: "imperial",
-			},
-			expectedUpdated: true,
-			configMutator: func(c *config.Config) {
-				c.Units = "imperial"
+			name:        "update units",
+			cli:         &CLI{Units: "imperial"},
+			wantUpdated: true,
+			check: func(t *testing.T, c *config.Config) {
+				assert.Equal(t, "imperial", c.Units)
 			},
 		},
 		{
-			name: "update default city",
-			cli: &CLI{
-				Default: "Paris",
-			},
-			expectedUpdated: true,
-			configMutator: func(c *config.Config) {
-				c.DefaultCity = "Paris"
+			name:        "update default city",
+			cli:         &CLI{Default: "Paris"},
+			wantUpdated: true,
+			check: func(t *testing.T, c *config.Config) {
+				assert.Equal(t, "Paris", c.DefaultCity)
 			},
 		},
 		{
-			name:            "no updates",
-			cli:             &CLI{},
-			expectedUpdated: false,
-			configMutator:   func(c *config.Config) {},
+			name:        "invalid units returns error",
+			cli:         &CLI{Units: "kelvin"},
+			wantUpdated: false,
+			check:       nil,
+		},
+		{
+			name:        "no flags — no update",
+			cli:         &CLI{},
+			wantUpdated: false,
+			check:       nil,
 		},
 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			initialConfig := createConfig()
-			expectedConfig := createConfig()
-			tc.configMutator(expectedConfig)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := newConfig()
+			updated, err := handleConfigUpdates(tt.cli, cfg)
 
-			testHandleConfigUpdates := func(cli *CLI, cfg *config.Config) (bool, error) {
-				updated := false
-
-				if cli.ApiUrl != "" {
-					cfg.ApiUrl = cli.ApiUrl
-					updated = true
-				}
-
-				if cli.Units != "" {
-					if !isValidUnit(cli.Units) {
-						return false, fmt.Errorf("invalid units")
-					}
-					cfg.Units = cli.Units
-					updated = true
-				}
-
-				if cli.Default != "" {
-					cfg.DefaultCity = cli.Default
-					updated = true
-				}
-
-				return updated, nil
+			if tt.cli.Units == "kelvin" {
+				require.Error(t, err)
+				return
 			}
 
-			updated, err := testHandleConfigUpdates(tc.cli, initialConfig)
-
-			assert.NoError(t, err)
-			assert.Equal(t, tc.expectedUpdated, updated)
-			assert.Equal(t, expectedConfig, initialConfig)
+			require.NoError(t, err)
+			assert.Equal(t, tt.wantUpdated, updated)
+			if tt.check != nil {
+				tt.check(t, cfg)
+			}
 		})
 	}
 }

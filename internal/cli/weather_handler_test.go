@@ -1,9 +1,11 @@
 package cli
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/josephburgess/gust/internal/config"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
 
@@ -160,4 +162,29 @@ func TestRenderWeatherView_FlagsAndPriority(t *testing.T) {
 			mockRenderer.AssertExpectations(t)
 		})
 	}
+}
+
+func TestCountryFlag(t *testing.T) {
+	tests := []struct {
+		code string
+		want string
+	}{
+		{"GB", "🇬🇧"},
+		{"US", "🇺🇸"},
+		{"DE", "🇩🇪"},
+		{"gb", "🇬🇧"}, // lowercase normalised
+		{"", ""},      // empty
+		{"GBR", ""},   // 3-char code ignored
+	}
+	for _, tt := range tests {
+		t.Run(tt.code, func(t *testing.T) {
+			assert.Equal(t, tt.want, countryFlag(tt.code))
+		})
+	}
+}
+
+func TestIsRateLimitError(t *testing.T) {
+	assert.True(t, isRateLimitError(fmt.Errorf("rate limit exceeded")))
+	assert.True(t, isRateLimitError(fmt.Errorf("Rate Limit reached")))
+	assert.False(t, isRateLimitError(fmt.Errorf("connection refused")))
 }

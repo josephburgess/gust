@@ -36,43 +36,6 @@ func (m *MockWeatherRenderer) RenderCompactWeather(city *models.City, weather *m
 	m.Called(city, weather, cfg)
 }
 
-// auth config handling
-type MockAuthConfig struct {
-	mock.Mock
-	APIKey     string
-	GithubUser string
-}
-
-func (m *MockAuthConfig) AuthFunc(apiURL string) (*config.AuthConfig, error) {
-	args := m.Called(apiURL)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*config.AuthConfig), args.Error(1)
-}
-
-func (m *MockAuthConfig) SaveAuthFunc(config *config.AuthConfig) error {
-	args := m.Called(config)
-	return args.Error(0)
-}
-
-func (m *MockAuthConfig) LoadAuthFunc() (*config.AuthConfig, error) {
-	args := m.Called()
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*config.AuthConfig), args.Error(1)
-}
-
-// mocks setup wizard
-type MockSetup struct {
-	mock.Mock
-}
-
-func (m *MockSetup) RunSetupFunc(cfg *config.Config, needsAuth bool) error {
-	args := m.Called(cfg, needsAuth)
-	return args.Error(0)
-}
 
 type MockWeatherClient struct {
 	mock.Mock

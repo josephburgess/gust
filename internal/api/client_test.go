@@ -4,101 +4,108 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestNewClient(t *testing.T) {
-	baseURL := "https://example.com"
-	apiKey := "test-api-key"
-	units := "metric"
-
-	client := NewClient(baseURL, apiKey, units)
-
-	if client.baseURL != baseURL {
-		t.Errorf("Expected baseURL to be %s, got %s", baseURL, client.baseURL)
-	}
-
-	if client.apiKey != apiKey {
-		t.Errorf("Expected apiKey to be %s, got %s", apiKey, client.apiKey)
-	}
-
-	if client.client == nil {
-		t.Error("HTTP client should not be nil")
-	}
+	client := NewClient("https://example.com", "test-key", "metric")
+	assert.Equal(t, "https://example.com", client.baseURL)
+	assert.Equal(t, "test-key", client.apiKey)
+	assert.NotNil(t, client.client)
 }
 
-func TestGetWeather(t *testing.T) {
+func TestGetWeather_OK(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/weather/London" {
-			t.Errorf("Expected path /api/weather/London, got %s", r.URL.Path)
-		}
-
-		if apiKey := r.URL.Query().Get("api_key"); apiKey != "test-api-key" {
-			t.Errorf("Expected api_key=test-api-key, got %s", apiKey)
-		}
-
+		assert.Equal(t, "/api/weather/London", r.URL.Path)
+		assert.Equal(t, "test-api-key", r.URL.Query().Get("api_key"))
 		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{
-			"city": {
-				"name": "London",
-				"lat": 51.5074,
-				"lon": -0.1278
-			},
-			"weather": {
-				"lat": 51.5074,
-				"lon": -0.1278,
-				"timezone": "Europe/London",
-				"timezone_offset": 0,
-				"current": {
-					"dt": 1613896743,
-					"temp": 283.15,
-					"weather": [{"id": 800, "main": "Clear", "description": "clear sky", "icon": "01d"}]
-				}
-			}
-		}`))
+		w.Write([]byte(`{"city":{"name":"London","lat":51.5,"lon":-0.1},"weather":{"lat":51.5,"lon":-0.1,"current":{"temp":283.15,"weather":[{"id":800,"description":"clear sky"}]}}}`))
 	}))
 	defer server.Close()
 
-	client := NewClient(server.URL, "test-api-key", "metric")
-
-	resp, err := client.GetWeather("London")
-	if err != nil {
-		t.Fatalf("Expected no error, got %v", err)
-	}
-
-	if resp == nil {
-		t.Fatal("Expected response, got nil")
-	}
-
-	if resp.City.Name != "London" {
-		t.Errorf("Expected city name London, got %s", resp.City.Name)
-	}
-
-	if resp.Weather.Current.Temp != 283.15 {
-		t.Errorf("Expected temp 283.15, got %f", resp.Weather.Current.Temp)
-	}
-
-	if len(resp.Weather.Current.Weather) == 0 || resp.Weather.Current.Weather[0].Description != "clear sky" {
-		t.Error("Weather conditions not parsed correctly")
-	}
+	resp, err := NewClient(server.URL, "test-api-key", "metric").GetWeather("London")
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, "London", resp.City.Name)
+	assert.Equal(t, 283.15, resp.Weather.Current.Temp)
+	assert.Equal(t, "clear sky", resp.Weather.Current.Weather[0].Description)
 }
 
-func TestGetWeatherError(t *testing.T) {
+func TestGetWeather_NotFound(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
-		w.Write([]byte(`{"error": "City not found"}`))
 	}))
 	defer server.Close()
 
-	client := NewClient(server.URL, "test-api-key", "metric")
+	_, err := NewClient(server.URL, "key", "metric").GetWeather("Nowhere")
+	require.Error(t, err)
+	var notFound *CityNotFoundError
+	assert.ErrorAs(t, err, &notFound)
+	assert.Equal(t, "Nowhere", notFound.City)
+}
 
-	resp, err := client.GetWeather("NonExistentCity")
+func TestGetWeather_RateLimit(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusTooManyRequests)
+		w.Write([]byte("rate limit exceeded"))
+	}))
+	defer server.Close()
 
-	if err == nil {
-		t.Error("Expected error, got nil")
-	}
+	_, err := NewClient(server.URL, "key", "metric").GetWeather("London")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "rate limit")
+}
 
-	if resp != nil {
-		t.Errorf("Expected nil response, got %+v", resp)
-	}
+func TestExtractRateLimitInfo(t *testing.T) {
+	resetTime := time.Now().Add(time.Hour).UTC().Truncate(time.Second)
+
+	t.Run("all headers present", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("X-RateLimit-Limit", "50")
+			w.Header().Set("X-RateLimit-Remaining", "42")
+			w.Header().Set("X-RateLimit-Reset", resetTime.Format(time.RFC3339))
+			w.Header().Set("Content-Type", "application/json")
+			w.Write([]byte(`{"city":{"name":"X"},"weather":{}}`))
+		}))
+		defer server.Close()
+
+		client := NewClient(server.URL, "key", "metric")
+		client.GetWeather("X")
+
+		assert.Equal(t, 50, client.RateLimitInfo.Limit)
+		assert.Equal(t, 42, client.RateLimitInfo.Remaining)
+		assert.Equal(t, resetTime, client.RateLimitInfo.ResetTime)
+	})
+
+	t.Run("missing headers leave values zero", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.Write([]byte(`{"city":{"name":"X"},"weather":{}}`))
+		}))
+		defer server.Close()
+
+		client := NewClient(server.URL, "key", "metric")
+		client.GetWeather("X")
+
+		assert.Equal(t, 0, client.RateLimitInfo.Limit)
+		assert.Equal(t, 0, client.RateLimitInfo.Remaining)
+	})
+
+	t.Run("malformed reset time falls back to one hour from now", func(t *testing.T) {
+		before := time.Now()
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("X-RateLimit-Reset", "not-a-time")
+			w.Header().Set("Content-Type", "application/json")
+			w.Write([]byte(`{"city":{"name":"X"},"weather":{}}`))
+		}))
+		defer server.Close()
+
+		client := NewClient(server.URL, "key", "metric")
+		client.GetWeather("X")
+
+		assert.True(t, client.RateLimitInfo.ResetTime.After(before.Add(55*time.Minute)))
+	})
 }

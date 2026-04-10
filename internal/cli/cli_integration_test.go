@@ -6,8 +6,8 @@ import (
 	"github.com/josephburgess/gust/internal/api"
 	"github.com/josephburgess/gust/internal/config"
 	"github.com/josephburgess/gust/internal/models"
-	"github.com/josephburgess/gust/internal/ui/renderer"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestWeatherFlowIntegration(t *testing.T) {
@@ -15,111 +15,39 @@ func TestWeatherFlowIntegration(t *testing.T) {
 		t.Skip("short mode - skipping int tests")
 	}
 
-	testCity := "London"
+	cityData := &models.City{Name: "London", Country: "GB", Lat: 51, Lon: 0}
+	weatherData := &models.OneCallResponse{Current: models.CurrentWeather{Temp: 20.5, FeelsLike: 21.0, Humidity: 65}}
+	weatherResponse := &api.WeatherResponse{City: cityData, Weather: weatherData}
+	cfg := &config.Config{ShowTips: false, DefaultView: "compact"}
 
-	cityData := &models.City{
-		Name:    testCity,
-		Country: "GB",
-		Lat:     51,
-		Lon:     0,
-	}
-
-	weatherData := &models.OneCallResponse{
-		Current: models.CurrentWeather{
-			Temp:      20.5,
-			FeelsLike: 21.0,
-			Humidity:  65,
-		},
-	}
-
-	weatherResponse := &api.WeatherResponse{
-		City:    cityData,
-		Weather: weatherData,
-	}
-
-	testCases := []struct {
+	tests := []struct {
 		name         string
 		cityFlag     string
 		args         []string
 		defaultCity  string
 		expectedCity string
 	}{
-		{
-			name:         "Using city flag",
-			cityFlag:     testCity,
-			args:         []string{},
-			defaultCity:  "Berlin",
-			expectedCity: testCity,
-		},
-		{
-			name:         "Using positional args",
-			cityFlag:     "",
-			args:         []string{testCity},
-			defaultCity:  "Berlin",
-			expectedCity: testCity,
-		},
-		{
-			name:         "Using default city",
-			cityFlag:     "",
-			args:         []string{},
-			defaultCity:  "Berlin",
-			expectedCity: "Berlin",
-		},
+		{"city flag", "London", []string{}, "Berlin", "London"},
+		{"positional args", "", []string{"London"}, "Berlin", "London"},
+		{"default city", "", []string{}, "Berlin", "Berlin"},
 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
 			mockClient := new(MockWeatherClient)
 			mockRenderer := new(MockWeatherRenderer)
-			mockConfig := &config.Config{ShowTips: true}
 
-			mockClient.On("GetWeather", tc.expectedCity).Return(weatherResponse, nil)
-			mockRenderer.On("RenderCompactWeather", cityData, weatherData, mockConfig).Return()
+			mockClient.On("GetWeather", tt.expectedCity).Return(weatherResponse, nil)
+			mockRenderer.On("RenderCompactWeather", cityData, weatherData, cfg).Return()
 
-			cli := &CLI{
-				City: tc.cityFlag,
-				Args: tc.args,
-			}
-
-			city := determineCityName(cli.City, cli.Args, tc.defaultCity)
-
-			assert.Equal(t, tc.expectedCity, city)
+			cli := &CLI{City: tt.cityFlag, Args: tt.args}
+			city := determineCityName(cli.City, cli.Args, tt.defaultCity)
+			assert.Equal(t, tt.expectedCity, city)
 
 			weather, err := mockClient.GetWeather(city)
-			assert.NoError(t, err)
-			assert.Equal(t, weatherResponse, weather)
+			require.NoError(t, err)
 
-			testRenderWeatherView := func(cli *CLI, renderer renderer.WeatherRenderer, city *models.City, weather *models.OneCallResponse, defaultView string, cfg *config.Config) {
-				switch {
-				case cli.Alerts:
-					renderer.RenderAlerts(city, weather, cfg)
-				case cli.Hourly:
-					renderer.RenderHourlyForecast(city, weather, cfg)
-				case cli.Daily:
-					renderer.RenderDailyForecast(city, weather, cfg)
-				case cli.Full:
-					renderer.RenderFullWeather(city, weather, cfg)
-				case cli.Compact:
-					renderer.RenderCompactWeather(city, weather, cfg)
-				case cli.Detailed:
-					renderer.RenderCurrentWeather(city, weather, cfg)
-				default:
-					switch defaultView {
-					case "compact":
-						renderer.RenderCompactWeather(city, weather, cfg)
-					case "daily":
-						renderer.RenderDailyForecast(city, weather, cfg)
-					case "hourly":
-						renderer.RenderHourlyForecast(city, weather, cfg)
-					case "full":
-						renderer.RenderFullWeather(city, weather, cfg)
-					default:
-						renderer.RenderCurrentWeather(city, weather, cfg)
-					}
-				}
-			}
-
-			testRenderWeatherView(cli, mockRenderer, weather.City, weather.Weather, "compact", mockConfig)
+			renderWeatherView(cli, mockRenderer, weather.City, weather.Weather, cfg)
 
 			mockClient.AssertExpectations(t)
 			mockRenderer.AssertExpectations(t)
@@ -130,108 +58,26 @@ func TestWeatherFlowIntegration(t *testing.T) {
 func TestViewSelectionIntegration(t *testing.T) {
 	mockCity := &models.City{Name: "TestCity"}
 	mockWeather := &models.OneCallResponse{}
-	mockConfig := &config.Config{ShowTips: true}
 
-	testCases := []struct {
+	tests := []struct {
 		name           string
 		cli            *CLI
 		defaultView    string
 		expectedMethod string
 	}{
-		{
-			name:           "cli flag overrides defaults",
-			cli:            &CLI{Hourly: true},
-			defaultView:    "compact",
-			expectedMethod: "RenderHourlyForecast",
-		},
-		{
-			name:           "multiple flags follow prio",
-			cli:            &CLI{Hourly: true, Daily: true, Compact: true},
-			defaultView:    "full",
-			expectedMethod: "RenderHourlyForecast",
-		},
-		{
-			name:           "default used when no flags",
-			cli:            &CLI{},
-			defaultView:    "daily",
-			expectedMethod: "RenderDailyForecast",
-		},
-		{
-			name:           "fallback to current when no flag or valid config",
-			cli:            &CLI{},
-			defaultView:    "invalid",
-			expectedMethod: "RenderCurrentWeather",
-		},
+		{"cli flag overrides default", &CLI{Hourly: true}, "compact", "RenderHourlyForecast"},
+		{"multiple flags respect priority", &CLI{Hourly: true, Daily: true, Compact: true}, "full", "RenderHourlyForecast"},
+		{"default view used when no flags", &CLI{}, "daily", "RenderDailyForecast"},
+		{"fallback to current for unknown default", &CLI{}, "invalid", "RenderCurrentWeather"},
 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := &config.Config{DefaultView: tt.defaultView, ShowTips: false}
 			mockRenderer := new(MockWeatherRenderer)
-			fakeConfig := &struct {
-				DefaultView string
-				ShowTips    bool
-			}{
-				DefaultView: tc.defaultView,
-				ShowTips:    true,
-			}
+			mockRenderer.On(tt.expectedMethod, mockCity, mockWeather, cfg).Return()
 
-			switch tc.expectedMethod {
-			case "RenderHourlyForecast":
-				mockRenderer.On("RenderHourlyForecast", mockCity, mockWeather, mockConfig).Return()
-			case "RenderDailyForecast":
-				mockRenderer.On("RenderDailyForecast", mockCity, mockWeather, mockConfig).Return()
-			case "RenderFullWeather":
-				mockRenderer.On("RenderFullWeather", mockCity, mockWeather, mockConfig).Return()
-			case "RenderCompactWeather":
-				mockRenderer.On("RenderCompactWeather", mockCity, mockWeather, mockConfig).Return()
-			case "RenderCurrentWeather":
-				mockRenderer.On("RenderCurrentWeather", mockCity, mockWeather, mockConfig).Return()
-			case "RenderAlerts":
-				mockRenderer.On("RenderAlerts", mockCity, mockWeather, mockConfig).Return()
-			}
-
-			testRenderWeatherView := func(cli *CLI, renderer renderer.WeatherRenderer, city *models.City, weather *models.OneCallResponse, cfg any) {
-				configObj, _ := cfg.(*struct {
-					DefaultView string
-					ShowTips    bool
-				})
-				var defaultView string
-				if configObj != nil {
-					defaultView = configObj.DefaultView
-				}
-
-				realConfig := &config.Config{ShowTips: true}
-
-				switch {
-				case cli.Alerts:
-					renderer.RenderAlerts(city, weather, realConfig)
-				case cli.Hourly:
-					renderer.RenderHourlyForecast(city, weather, realConfig)
-				case cli.Daily:
-					renderer.RenderDailyForecast(city, weather, realConfig)
-				case cli.Full:
-					renderer.RenderFullWeather(city, weather, realConfig)
-				case cli.Compact:
-					renderer.RenderCompactWeather(city, weather, realConfig)
-				case cli.Detailed:
-					renderer.RenderCurrentWeather(city, weather, realConfig)
-				default:
-					switch defaultView {
-					case "compact":
-						renderer.RenderCompactWeather(city, weather, realConfig)
-					case "daily":
-						renderer.RenderDailyForecast(city, weather, realConfig)
-					case "hourly":
-						renderer.RenderHourlyForecast(city, weather, realConfig)
-					case "full":
-						renderer.RenderFullWeather(city, weather, realConfig)
-					default:
-						renderer.RenderCurrentWeather(city, weather, realConfig)
-					}
-				}
-			}
-
-			testRenderWeatherView(tc.cli, mockRenderer, mockCity, mockWeather, fakeConfig)
+			renderWeatherView(tt.cli, mockRenderer, mockCity, mockWeather, cfg)
 
 			mockRenderer.AssertExpectations(t)
 		})
@@ -239,60 +85,24 @@ func TestViewSelectionIntegration(t *testing.T) {
 }
 
 func TestCityDeterminationIntegration(t *testing.T) {
-	testCases := []struct {
+	tests := []struct {
 		name         string
 		cityFlag     string
 		args         []string
 		defaultCity  string
 		expectedCity string
 	}{
-		{
-			name:         "city flag takes prio",
-			cityFlag:     "London",
-			args:         []string{"Paris"},
-			defaultCity:  "Berlin",
-			expectedCity: "London",
-		},
-		{
-			name:         "args used when no flag",
-			cityFlag:     "",
-			args:         []string{"Paris"},
-			defaultCity:  "Berlin",
-			expectedCity: "Paris",
-		},
-		{
-			name:         "multi-word city from args",
-			cityFlag:     "",
-			args:         []string{"New", "York"},
-			defaultCity:  "Berlin",
-			expectedCity: "New York",
-		},
-		{
-			name:         "default city when no flag or args",
-			cityFlag:     "",
-			args:         []string{},
-			defaultCity:  "Berlin",
-			expectedCity: "Berlin",
-		},
-		{
-			name:         "empty when no sources available",
-			cityFlag:     "",
-			args:         []string{},
-			defaultCity:  "",
-			expectedCity: "",
-		},
+		{"flag takes priority", "London", []string{"Paris"}, "Berlin", "London"},
+		{"args used when no flag", "", []string{"Paris"}, "Berlin", "Paris"},
+		{"multi-word city from args", "", []string{"New", "York"}, "Berlin", "New York"},
+		{"default when no flag or args", "", []string{}, "Berlin", "Berlin"},
+		{"empty when no sources", "", []string{}, "", ""},
 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			cli := &CLI{
-				City: tc.cityFlag,
-				Args: tc.args,
-			}
-
-			city := determineCityName(cli.City, cli.Args, tc.defaultCity)
-
-			assert.Equal(t, tc.expectedCity, city)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cli := &CLI{City: tt.cityFlag, Args: tt.args}
+			assert.Equal(t, tt.expectedCity, determineCityName(cli.City, cli.Args, tt.defaultCity))
 		})
 	}
 }
