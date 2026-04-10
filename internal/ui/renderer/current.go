@@ -24,7 +24,7 @@ func (r *TerminalRenderer) RenderCurrentWeather(city *models.City, weather *mode
 
 		tempUnit := r.GetTemperatureUnit()
 
-		fmt.Printf("Temperature: %s %s (F/L: %.1f%s)\n",
+		fmt.Printf("Temperature: %s %s (Feels like: %.1f%s)\n",
 			styles.TempStyle(fmt.Sprintf("%.1f%s", current.Temp, tempUnit)),
 			"🌡️",
 			current.FeelsLike, tempUnit)

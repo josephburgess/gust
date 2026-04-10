@@ -17,6 +17,8 @@ import (
 	"github.com/josephburgess/gust/internal/ui/output"
 )
 
+var authHTTPClient = &http.Client{Timeout: 15 * time.Second}
+
 type AuthConfig struct {
 	APIKey     string    `json:"api_key"`
 	ServerURL  string    `json:"server_url"`
@@ -122,7 +124,7 @@ func startCallbackServer(port int, apiUrl string, authDone chan<- *AuthConfig, e
 func getAuthURL(serverURL string, port int) (string, error) {
 	url := fmt.Sprintf("%s/api/auth/request?callback_port=%d", serverURL, port)
 
-	resp, err := http.Get(url)
+	resp, err := authHTTPClient.Get(url)
 	if err != nil {
 		return "", fmt.Errorf("failed to contact auth server: %w", err)
 	}
@@ -154,7 +156,7 @@ func exchangeCodeForAPIKey(serverURL, code string, port int) (*AuthConfig, error
 		return nil, fmt.Errorf("failed to create request body: %w", err)
 	}
 
-	resp, err := http.Post(url, "application/json", bytes.NewBuffer(reqBody))
+	resp, err := authHTTPClient.Post(url, "application/json", bytes.NewBuffer(reqBody))
 	if err != nil {
 		return nil, fmt.Errorf("failed to exchange code: %w", err)
 	}

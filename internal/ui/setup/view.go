@@ -67,7 +67,7 @@ func (m Model) buildContent() string {
 					locationInfo = fmt.Sprintf("%s, %s %s", city.State, city.Country, flag)
 				} else if city.Country != "" {
 					flag := getCountryEmoji(city.Country)
-					locationInfo = fmt.Sprintf("%s %s", flag, locationInfo)
+					locationInfo = fmt.Sprintf("%s %s", city.Country, flag)
 				} else {
 					locationInfo = fmt.Sprintf("(%.4f, %.4f)", city.Lat, city.Lon)
 				}
@@ -212,7 +212,3 @@ func getCountryEmoji(countryCode string) string {
 	return flag
 }
 
-// Add helper functions to work with country names and emojis
-
-// GetCountryEmojiByName returns the flag emoji for a given country name
-// It converts the name to lowercase for case-insensitive matching

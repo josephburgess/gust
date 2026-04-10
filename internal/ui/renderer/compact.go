@@ -12,7 +12,7 @@ import (
 
 func (r *TerminalRenderer) RenderCompactWeather(city *models.City, weather *models.OneCallResponse, cfg *config.Config) {
 	current := weather.Current
-	fmt.Print(styles.FormatHeader(fmt.Sprintf("%s WEATHER", strings.ToUpper(city.Name))))
+	fmt.Print(styles.FormatHeader(fmt.Sprintf("WEATHER FOR %s", strings.ToUpper(city.Name))))
 	if len(current.Weather) > 0 {
 		weatherCond := current.Weather[0]
 		tempUnit := r.GetTemperatureUnit()
@@ -23,7 +23,7 @@ func (r *TerminalRenderer) RenderCompactWeather(city *models.City, weather *mode
 		if current.Temp < 10 {
 			extraSpace = " "
 		}
-		fmt.Printf("🌡️ %-16s%s         %s %-s\n",
+		fmt.Printf("🌡️ %-16s%s         %s %s\n",
 			temp,
 			extraSpace,
 			emoji,

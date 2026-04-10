@@ -39,21 +39,16 @@ func (r *TerminalRenderer) RenderHourlyForecast(city *models.City, weather *mode
 			}
 
 			weatherCond := hour.Weather[0]
-			temp := styles.TempStyle(fmt.Sprintf("%.1f%s", hour.Temp, tempUnit))
+			temp := styles.TempStyle(fmt.Sprintf("%5.1f%s", hour.Temp, tempUnit))
 
 			popStr := ""
 			if hour.Pop > 0 {
 				popStr = fmt.Sprintf(" (%.0f%% chance of precipitation)", hour.Pop*100)
 			}
 
-			extraSpace := ""
-			if hour.Temp < 10 {
-				extraSpace = " "
-			}
-			fmt.Printf("  %s:   %s  %s%s  %s%s\n",
+			fmt.Printf("  %s:   %s  %s  %s%s\n",
 				hourStr,
 				temp,
-				extraSpace,
 				models.GetWeatherEmoji(weatherCond.ID, nil),
 				styles.InfoStyle(weatherCond.Description),
 				popStr)

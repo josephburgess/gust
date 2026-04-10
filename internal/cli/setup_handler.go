@@ -14,7 +14,10 @@ func needsSetup(cli *CLI, cfg *config.Config) bool {
 
 func handleSetup(cfg *config.Config) (bool, error) {
 	output.PrintInfo("Running setup wizard...")
-	authConfig, _ := config.LoadAuthConfig()
+	authConfig, err := config.LoadAuthConfig()
+	if err != nil {
+		return false, fmt.Errorf("failed to load auth config: %w", err)
+	}
 	needsAuth := authConfig == nil
 
 	if err := setup.RunSetup(cfg, needsAuth); err != nil {

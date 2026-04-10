@@ -2,7 +2,6 @@ package cli
 
 import (
 	"fmt"
-	"os"
 	"time"
 
 	"github.com/josephburgess/gust/internal/config"
@@ -17,7 +16,10 @@ func handleConfigUpdates(cli *CLI, cfg *config.Config) (bool, error) {
 	}
 
 	if cli.ApiKey != "" {
-		authConfig, _ := config.LoadAuthConfig()
+		authConfig, err := config.LoadAuthConfig()
+		if err != nil {
+			return false, fmt.Errorf("failed to load auth config: %w", err)
+		}
 
 		newAuthConfig := &config.AuthConfig{
 			APIKey:     cli.ApiKey,
@@ -40,8 +42,7 @@ func handleConfigUpdates(cli *CLI, cfg *config.Config) (bool, error) {
 
 	if cli.Units != "" {
 		if !isValidUnit(cli.Units) {
-			fmt.Println("Invalid units. Must be one of: metric, imperial, standard")
-			os.Exit(1)
+			return false, fmt.Errorf("invalid units %q: must be one of metric, imperial, standard", cli.Units)
 		}
 		cfg.Units = cli.Units
 		updated = true
