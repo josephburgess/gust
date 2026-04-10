@@ -27,7 +27,7 @@ func fetchAndRenderWeather(city string, cfg *config.Config, authConfig *config.A
 	if !cli.Refresh && weatherCache != nil {
 		if cached, age, ok := weatherCache.Get(city, cfg.Units); ok {
 			ttlRemaining := cache.TTL - age
-			weatherRenderer := renderer.NewWeatherRenderer("terminal", cfg.Units)
+			weatherRenderer := renderer.NewWeatherRenderer(cfg.Units)
 			renderWeatherView(cli, weatherRenderer, cached.City, cached.Weather, cfg)
 			fmt.Printf("%s\n", styles.HintStyle.Render(
 				fmt.Sprintf("↩ cached %s · refreshes in %dm · gust -R to force refresh",
@@ -44,7 +44,7 @@ func fetchAndRenderWeather(city string, cfg *config.Config, authConfig *config.A
 	fetchFunc := func() (*api.WeatherResponse, error) {
 		weather, err := client.GetWeather(city)
 		if err != nil {
-			if strings.Contains(strings.ToLower(err.Error()), "rate limit") {
+			if isRateLimitError(err) {
 				return nil, fmt.Errorf("rate limit reached: %w", err)
 			}
 			return nil, err
@@ -66,15 +66,14 @@ func fetchAndRenderWeather(city string, cfg *config.Config, authConfig *config.A
 		if weatherCache != nil && isNetworkError(err) {
 			if stale, age, ok := weatherCache.GetStale(city, cfg.Units); ok {
 				output.PrintStaleWarning(age)
-				weatherRenderer := renderer.NewWeatherRenderer("terminal", cfg.Units)
+				weatherRenderer := renderer.NewWeatherRenderer(cfg.Units)
 				renderWeatherView(cli, weatherRenderer, stale.City, stale.Weather, cfg)
 				return nil
 			}
 		}
 
 		// rate limit — show friendly message
-		if client.RateLimitInfo != nil && client.RateLimitInfo.Limit > 0 &&
-			strings.Contains(strings.ToLower(err.Error()), "rate limit") {
+		if client.RateLimitInfo != nil && client.RateLimitInfo.Limit > 0 && isRateLimitError(err) {
 			output.PrintRateLimitError(client.RateLimitInfo.Limit, client.RateLimitInfo.ResetTime)
 			timeUntilReset := time.Until(client.RateLimitInfo.ResetTime)
 			if timeUntilReset > 0 {
@@ -106,7 +105,7 @@ func fetchAndRenderWeather(city string, cfg *config.Config, authConfig *config.A
 		weatherCache.Set(city, cfg.Units, weather)
 	}
 
-	weatherRenderer := renderer.NewWeatherRenderer("terminal", cfg.Units)
+	weatherRenderer := renderer.NewWeatherRenderer(cfg.Units)
 	renderWeatherView(cli, weatherRenderer, weather.City, weather.Weather, cfg)
 
 	return nil
@@ -149,6 +148,10 @@ func countryFlag(code string) string {
 	code = strings.ToUpper(code)
 	const offset = 127397
 	return string(rune(code[0])+offset) + string(rune(code[1])+offset)
+}
+
+func isRateLimitError(err error) bool {
+	return strings.Contains(strings.ToLower(err.Error()), "rate limit")
 }
 
 func isNetworkError(err error) bool {
