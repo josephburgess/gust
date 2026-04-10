@@ -2,6 +2,7 @@ package output
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/josephburgess/gust/internal/ui/styles"
@@ -68,17 +69,22 @@ func PrintRateLimitError(limit int, resetTime time.Time) {
 	fmt.Println()
 }
 
-// going to implement this later - will create an api key status check endpoint
-/*
-func PrintRateLimitStatus(remaining, limit int) {
+func PrintQuotaStatus(limit, used int, resetAt *time.Time, unlimited bool) {
+	if unlimited {
+		fmt.Println(styles.BoxStyle.Render(
+			"API Quota\n\n" +
+				styles.SuccessStyle("Unlimited") + " — using your own OpenWeather API key",
+		))
+		return
+	}
+
 	if limit <= 0 {
+		PrintWarning("Could not retrieve quota information.")
 		return
 	}
 
 	const barWidth = 20
-	used := limit - remaining
-
-	filledCount := min(int(float64(used) / float64(limit) * barWidth), barWidth)
+	filledCount := min(int(float64(used)/float64(limit)*float64(barWidth)), barWidth)
 	emptyCount := barWidth - filledCount
 
 	filled := styles.HighlightStyleF(strings.Repeat("█", filledCount))
@@ -87,14 +93,36 @@ func PrintRateLimitStatus(remaining, limit int) {
 	percentage := float64(used) / float64(limit) * 100
 
 	var usageText string
-	if percentage >= 90 {
+	switch {
+	case percentage >= 90:
 		usageText = styles.ErrorStyle(fmt.Sprintf("%.0f%% used", percentage))
-	} else if percentage >= 75 {
+	case percentage >= 75:
 		usageText = styles.WarningStyle(fmt.Sprintf("%.0f%% used", percentage))
-	} else {
+	default:
 		usageText = styles.InfoStyle(fmt.Sprintf("%.0f%% used", percentage))
 	}
 
-	fmt.Printf("API Usage: [%s%s] %s (%d/%d)\n", filled, empty, usageText, used, limit)
+	remaining := limit - used
+
+	var resetLine string
+	if resetAt != nil {
+		timeUntil := time.Until(*resetAt)
+		hours := int(timeUntil.Hours())
+		minutes := int(timeUntil.Minutes()) % 60
+		resetLine = fmt.Sprintf("\nResets in %s (%s)",
+			styles.TimeStyle(fmt.Sprintf("%dh %dm", hours, minutes)),
+			styles.TimeStyle(resetAt.Local().Format("15:04")),
+		)
+	}
+
+	fmt.Println(styles.BoxStyle.Render(fmt.Sprintf(
+		"API Quota\n\n"+
+			"[%s%s] %s\n"+
+			"%s used of %s daily requests (%s remaining)%s",
+		filled, empty, usageText,
+		styles.HighlightStyleF(fmt.Sprintf("%d", used)),
+		styles.HighlightStyleF(fmt.Sprintf("%d", limit)),
+		styles.HighlightStyleF(fmt.Sprintf("%d", remaining)),
+		resetLine,
+	)))
 }
-*/

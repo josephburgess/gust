@@ -71,6 +71,16 @@ func fetchAndRenderWeather(city string, cfg *config.Config, authConfig *config.A
 	return nil
 }
 
+func handleStatus(cfg *config.Config, authConfig *config.AuthConfig) error {
+	client := api.NewClient(cfg.ApiUrl, authConfig.APIKey, cfg.Units)
+	quota, err := client.GetQuota()
+	if err != nil {
+		return fmt.Errorf("failed to fetch quota: %w", err)
+	}
+	output.PrintQuotaStatus(quota.DailyLimit, quota.DailyUsed, quota.ResetAt, quota.Unlimited)
+	return nil
+}
+
 func renderWeatherView(cli *CLI, weatherRenderer renderer.WeatherRenderer, city *models.City, weather *models.OneCallResponse, cfg *config.Config) {
 	switch {
 	case cli.Alerts:

@@ -22,7 +22,10 @@ func Run(ctx *kong.Context, cli *CLI) error {
 		return handleLogin(cfg.ApiUrl)
 	}
 
-	authConfig, _ := config.LoadAuthConfig()
+	authConfig, err := config.LoadAuthConfig()
+	if err != nil {
+		return fmt.Errorf("failed to load auth config: %w", err)
+	}
 	needsAuth := authConfig == nil
 
 	if needsSetup(cli, cfg) {
@@ -32,11 +35,18 @@ func Run(ctx *kong.Context, cli *CLI) error {
 			return err
 		}
 
-		authConfig, _ = config.LoadAuthConfig()
+		authConfig, err = config.LoadAuthConfig()
+		if err != nil {
+			return fmt.Errorf("failed to load auth config: %w", err)
+		}
 	}
 
 	if needsAuth {
 		return handleMissingAuth()
+	}
+
+	if cli.Status {
+		return handleStatus(cfg, authConfig)
 	}
 
 	city := determineCityName(cli.City, cli.Args, cfg.DefaultCity)

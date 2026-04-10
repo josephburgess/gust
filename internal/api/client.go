@@ -108,6 +108,36 @@ func (c *Client) GetWeather(cityName string) (*WeatherResponse, error) {
 	return &response, nil
 }
 
+type QuotaResponse struct {
+	DailyLimit int        `json:"daily_limit"`
+	DailyUsed  int        `json:"daily_used"`
+	Remaining  int        `json:"remaining"`
+	ResetAt    *time.Time `json:"reset_at"`
+	Unlimited  bool       `json:"unlimited"`
+}
+
+func (c *Client) GetQuota() (*QuotaResponse, error) {
+	endpoint := fmt.Sprintf("%s/api/user/quota?api_key=%s", c.baseURL, c.apiKey)
+
+	resp, err := c.client.Get(endpoint)
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to API: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("API error (%d): %s", resp.StatusCode, string(body))
+	}
+
+	var quota QuotaResponse
+	if err := json.NewDecoder(resp.Body).Decode(&quota); err != nil {
+		return nil, fmt.Errorf("failed to decode API response: %w", err)
+	}
+
+	return &quota, nil
+}
+
 func (c *Client) SearchCities(query string) ([]models.City, error) {
 	endpoint := fmt.Sprintf(
 		"%s/api/cities/search?q=%s",
