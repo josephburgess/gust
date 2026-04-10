@@ -20,8 +20,9 @@ type CLI struct {
 	Full     bool `name:"full" short:"f" help:"Show today, 5-day and weather alert forecasts"`
 	Daily    bool `name:"daily" short:"y" help:"Show 5-day forecast"`
 	Hourly   bool `name:"hourly" short:"r" help:"Show 24-hour (hourly) forecast"`
-	Alerts bool `name:"alerts" short:"a" help:"Show weather alerts"`
-	Status bool `name:"status" short:"s" help:"Show your API quota usage"`
+	Alerts  bool `name:"alerts" short:"a" help:"Show weather alerts"`
+	Status  bool `name:"status" short:"s" help:"Show your API quota usage"`
+	Refresh bool `name:"refresh" short:"R" help:"Bypass cache and fetch fresh weather data"`
 
 	// args (city name)
 	Args []string `arg:"" optional:"" help:"City name (can be multiple words)"`

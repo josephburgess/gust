@@ -29,6 +29,7 @@ func TestNewApp(t *testing.T) {
 		{"Alerts", cli.Alerts},
 		{"Units", cli.Units},
 		{"Status", cli.Status},
+		{"Refresh", cli.Refresh},
 	}
 
 	for _, field := range fields {

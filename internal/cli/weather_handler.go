@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/josephburgess/gust/internal/api"
+	"github.com/josephburgess/gust/internal/cache"
 	"github.com/josephburgess/gust/internal/config"
 	"github.com/josephburgess/gust/internal/models"
 	"github.com/josephburgess/gust/internal/ui/components"
@@ -15,6 +16,28 @@ import (
 )
 
 func fetchAndRenderWeather(city string, cfg *config.Config, authConfig *config.AuthConfig, cli *CLI) error {
+	weatherCache, err := cache.New()
+	if err != nil {
+		// cache failure is non-fatal — just skip caching
+		weatherCache = nil
+	}
+
+	// serve from cache if available and refresh not requested
+	if !cli.Refresh && weatherCache != nil {
+		if cached, age, ok := weatherCache.Get(city, cfg.Units); ok {
+			ttlRemaining := cache.TTL - age
+			weatherRenderer := renderer.NewWeatherRenderer("terminal", cfg.Units)
+			renderWeatherView(cli, weatherRenderer, cached.City, cached.Weather, cfg)
+			fmt.Printf("%s\n", styles.HintStyle.Render(
+				fmt.Sprintf("↩ cached %s · refreshes in %dm · gust -R to force refresh",
+					cache.FormatAge(age),
+					int(ttlRemaining.Minutes())+1,
+				),
+			))
+			return nil
+		}
+	}
+
 	client := api.NewClient(cfg.ApiUrl, authConfig.APIKey, cfg.Units)
 
 	fetchFunc := func() (*api.WeatherResponse, error) {
@@ -44,10 +67,9 @@ func fetchAndRenderWeather(city string, cfg *config.Config, authConfig *config.A
 					remainingMinutes := minutesRemaining % 60
 					return fmt.Errorf("please try again in about %d hour(s) and %d minute(s) when your rate limit resets",
 						hoursRemaining, remainingMinutes)
-				} else {
-					return fmt.Errorf("please try again in about %d minute(s) when your rate limit resets",
-						minutesRemaining)
 				}
+				return fmt.Errorf("please try again in about %d minute(s) when your rate limit resets",
+					minutesRemaining)
 			}
 			return fmt.Errorf("rate limit reached, please try again later")
 		}
@@ -63,6 +85,11 @@ func fetchAndRenderWeather(city string, cfg *config.Config, authConfig *config.A
 
 	if err != nil {
 		return err
+	}
+
+	if weatherCache != nil {
+		// non-fatal if store fails
+		weatherCache.Set(city, cfg.Units, weather)
 	}
 
 	weatherRenderer := renderer.NewWeatherRenderer("terminal", cfg.Units)
