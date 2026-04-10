@@ -18,6 +18,10 @@ func Run(ctx *kong.Context, cli *CLI) error {
 		return err
 	}
 
+	if cli.Where {
+		return handleWhere(cfg)
+	}
+
 	if cli.Login {
 		return handleLogin(cfg.ApiUrl)
 	}

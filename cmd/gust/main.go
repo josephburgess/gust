@@ -9,9 +9,12 @@ import (
 	"github.com/josephburgess/gust/internal/ui/styles"
 )
 
+// Version is set at build time via -ldflags "-X main.Version=x.y.z"
+var Version = "dev"
+
 func main() {
 	_ = godotenv.Load()
-	app, cliInstance := cli.NewApp()
+	app, cliInstance := cli.NewApp(Version)
 	ctx, err := app.Parse(os.Args[1:])
 	if err != nil {
 		styles.ExitWithError("Failed to parse command line arguments", err)

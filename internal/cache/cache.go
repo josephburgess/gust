@@ -55,6 +55,22 @@ func (c *Cache) Get(city, units string) (*api.WeatherResponse, time.Duration, bo
 	return e.Data, age, true
 }
 
+// GetStale returns cached data regardless of TTL — used as a fallback when the
+// API is unreachable. Returns false only if no cached file exists at all.
+func (c *Cache) GetStale(city, units string) (*api.WeatherResponse, time.Duration, bool) {
+	data, err := os.ReadFile(c.filePath(city, units))
+	if err != nil {
+		return nil, 0, false
+	}
+
+	var e entry
+	if err := json.Unmarshal(data, &e); err != nil {
+		return nil, 0, false
+	}
+
+	return e.Data, time.Since(e.CachedAt), true
+}
+
 func (c *Cache) Set(city, units string, data *api.WeatherResponse) error {
 	e := entry{
 		Data:     data,

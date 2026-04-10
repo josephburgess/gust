@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -46,7 +47,7 @@ func fetchAndRenderWeather(city string, cfg *config.Config, authConfig *config.A
 			if strings.Contains(strings.ToLower(err.Error()), "rate limit") {
 				return nil, fmt.Errorf("rate limit reached: %w", err)
 			}
-			return nil, fmt.Errorf("failed to get weather data: %w", err)
+			return nil, err
 		}
 		return weather, nil
 	}
@@ -54,15 +55,31 @@ func fetchAndRenderWeather(city string, cfg *config.Config, authConfig *config.A
 	message := fmt.Sprintf("Fetching weather for %s...", city)
 	weather, err := components.RunWithSpinner(message, components.WeatherEmojis, styles.Foam, fetchFunc)
 
-	if client.RateLimitInfo != nil && client.RateLimitInfo.Limit > 0 {
-		if err != nil && strings.Contains(strings.ToLower(err.Error()), "rate limit") {
-			output.PrintRateLimitError(client.RateLimitInfo.Limit, client.RateLimitInfo.ResetTime)
+	if err != nil {
+		// city not found — show suggestions
+		var notFound *api.CityNotFoundError
+		if errors.As(err, &notFound) {
+			return handleCityNotFound(client, city)
+		}
 
+		// network/server error — fall back to stale cache if available
+		if weatherCache != nil && isNetworkError(err) {
+			if stale, age, ok := weatherCache.GetStale(city, cfg.Units); ok {
+				output.PrintStaleWarning(age)
+				weatherRenderer := renderer.NewWeatherRenderer("terminal", cfg.Units)
+				renderWeatherView(cli, weatherRenderer, stale.City, stale.Weather, cfg)
+				return nil
+			}
+		}
+
+		// rate limit — show friendly message
+		if client.RateLimitInfo != nil && client.RateLimitInfo.Limit > 0 &&
+			strings.Contains(strings.ToLower(err.Error()), "rate limit") {
+			output.PrintRateLimitError(client.RateLimitInfo.Limit, client.RateLimitInfo.ResetTime)
 			timeUntilReset := time.Until(client.RateLimitInfo.ResetTime)
 			if timeUntilReset > 0 {
 				minutesRemaining := int(timeUntilReset.Minutes()) + 1
 				hoursRemaining := minutesRemaining / 60
-
 				if hoursRemaining > 0 {
 					remainingMinutes := minutesRemaining % 60
 					return fmt.Errorf("please try again in about %d hour(s) and %d minute(s) when your rate limit resets",
@@ -74,21 +91,18 @@ func fetchAndRenderWeather(city string, cfg *config.Config, authConfig *config.A
 			return fmt.Errorf("rate limit reached, please try again later")
 		}
 
-		if client.RateLimitInfo.Remaining <= 5 && client.RateLimitInfo.Remaining > 0 {
-			output.PrintRateLimitWarning(
-				client.RateLimitInfo.Remaining,
-				client.RateLimitInfo.Limit,
-				client.RateLimitInfo.ResetTime,
-			)
-		}
-	}
-
-	if err != nil {
 		return err
 	}
 
+	if client.RateLimitInfo != nil && client.RateLimitInfo.Remaining <= 5 && client.RateLimitInfo.Remaining > 0 {
+		output.PrintRateLimitWarning(
+			client.RateLimitInfo.Remaining,
+			client.RateLimitInfo.Limit,
+			client.RateLimitInfo.ResetTime,
+		)
+	}
+
 	if weatherCache != nil {
-		// non-fatal if store fails
 		weatherCache.Set(city, cfg.Units, weather)
 	}
 
@@ -96,6 +110,54 @@ func fetchAndRenderWeather(city string, cfg *config.Config, authConfig *config.A
 	renderWeatherView(cli, weatherRenderer, weather.City, weather.Weather, cfg)
 
 	return nil
+}
+
+func handleCityNotFound(client *api.Client, city string) error {
+	suggestions, err := client.SearchCities(city)
+	if err != nil || len(suggestions) == 0 {
+		output.PrintCityNotFound(city, nil)
+		return fmt.Errorf("city %q not found", city)
+	}
+
+	formatted := make([]string, 0, len(suggestions))
+	for _, s := range suggestions {
+		var parts []string
+		if s.Name != "" {
+			parts = append(parts, s.Name)
+		}
+		if s.State != "" {
+			parts = append(parts, s.State)
+		}
+		if s.Country != "" {
+			parts = append(parts, s.Country)
+		}
+		label := strings.Join(parts, ", ")
+		if flag := countryFlag(s.Country); flag != "" {
+			label += " " + flag
+		}
+		formatted = append(formatted, label)
+	}
+
+	output.PrintCityNotFound(city, formatted)
+	return fmt.Errorf("city %q not found", city)
+}
+
+func countryFlag(code string) string {
+	if len(code) != 2 {
+		return ""
+	}
+	code = strings.ToUpper(code)
+	const offset = 127397
+	return string(rune(code[0])+offset) + string(rune(code[1])+offset)
+}
+
+func isNetworkError(err error) bool {
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "failed to connect") ||
+		strings.Contains(msg, "timeout") ||
+		strings.Contains(msg, "deadline exceeded") ||
+		strings.Contains(msg, "connection refused") ||
+		strings.Contains(msg, "no such host")
 }
 
 func handleStatus(cfg *config.Config, authConfig *config.AuthConfig) error {

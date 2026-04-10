@@ -6,13 +6,15 @@ import (
 
 type CLI struct {
 	// config flags
-	City    string `name:"city" short:"C" help:"City name"`
-	Default string `name:"default" short:"D" help:"Set a new default city"`
-	ApiUrl  string `name:"api" short:"A" help:"Set custom API server URL"`
-	Login   bool   `name:"login" short:"L" help:"Authenticate with GitHub"`
-	Setup   bool   `name:"setup" short:"S" help:"Run the setup wizard"`
-	Units   string `name:"units" short:"U" help:"Temperature units (metric, imperial, standard)"`
-	ApiKey  string `name:"api-key" short:"K" help:"Set your api key (either gust or openweathermap)"`
+	City    string           `name:"city" short:"C" help:"City name"`
+	Default string           `name:"default" short:"D" help:"Set a new default city"`
+	ApiUrl  string           `name:"api" short:"A" help:"Set custom API server URL"`
+	Login   bool             `name:"login" short:"L" help:"Authenticate with GitHub"`
+	Setup   bool             `name:"setup" short:"S" help:"Run the setup wizard"`
+	Units   string           `name:"units" short:"U" help:"Temperature units (metric, imperial, standard)"`
+	ApiKey  string           `name:"api-key" short:"K" help:"Set your api key (either gust or openweathermap)"`
+	Version kong.VersionFlag `name:"version" short:"v" help:"Print version and exit"`
+	Where   bool             `name:"where" short:"w" help:"Show current configuration"`
 
 	// display flags
 	Compact  bool `name:"compact" short:"c" help:"Show today's compact weather view"`
@@ -20,20 +22,21 @@ type CLI struct {
 	Full     bool `name:"full" short:"f" help:"Show today, 5-day and weather alert forecasts"`
 	Daily    bool `name:"daily" short:"y" help:"Show 5-day forecast"`
 	Hourly   bool `name:"hourly" short:"r" help:"Show 24-hour (hourly) forecast"`
-	Alerts  bool `name:"alerts" short:"a" help:"Show weather alerts"`
-	Status  bool `name:"status" short:"s" help:"Show your API quota usage"`
-	Refresh bool `name:"refresh" short:"R" help:"Bypass cache and fetch fresh weather data"`
+	Alerts   bool `name:"alerts" short:"a" help:"Show weather alerts"`
+	Status   bool `name:"status" short:"s" help:"Show your API quota usage"`
+	Refresh  bool `name:"refresh" short:"R" help:"Bypass cache and fetch fresh weather data"`
 
 	// args (city name)
 	Args []string `arg:"" optional:"" help:"City name (can be multiple words)"`
 }
 
-func NewApp() (*kong.Kong, *CLI) {
+func NewApp(version string) (*kong.Kong, *CLI) {
 	cli := &CLI{}
 	parser := kong.Must(cli,
 		kong.Name("gust"),
 		kong.Description("Simple terminal weather 🌤️"),
 		kong.UsageOnError(),
+		kong.Vars{"version": version},
 		kong.ConfigureHelp(kong.HelpOptions{
 			Compact: true,
 			Summary: true,

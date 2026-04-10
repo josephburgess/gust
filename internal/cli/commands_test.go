@@ -7,7 +7,7 @@ import (
 )
 
 func TestNewApp(t *testing.T) {
-	app, cli := NewApp()
+	app, cli := NewApp("test")
 
 	assert.NotNil(t, app)
 	assert.NotNil(t, cli)

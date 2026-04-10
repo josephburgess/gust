@@ -69,6 +69,63 @@ func PrintRateLimitError(limit int, resetTime time.Time) {
 	fmt.Println()
 }
 
+func PrintWhereConfig(defaultCity, units, view, apiURL string, showTips bool) {
+	tipsStr := "off"
+	if showTips {
+		tipsStr = "on"
+	}
+	fmt.Println(styles.BoxStyle.Render(fmt.Sprintf(
+		"Current configuration\n\n"+
+			"Default city    %s\n"+
+			"Units           %s\n"+
+			"Default view    %s\n"+
+			"API             %s\n"+
+			"Tips            %s",
+		styles.HighlightStyleF(defaultCity),
+		styles.HighlightStyleF(units),
+		styles.HighlightStyleF(view),
+		styles.HighlightStyleF(apiURL),
+		styles.HighlightStyleF(tipsStr),
+	)))
+}
+
+func PrintStaleWarning(age time.Duration) {
+	hours := int(age.Hours())
+	minutes := int(age.Minutes()) % 60
+
+	var ageStr string
+	if hours > 0 {
+		ageStr = fmt.Sprintf("%dh %dm", hours, minutes)
+	} else {
+		ageStr = fmt.Sprintf("%dm", minutes)
+	}
+
+	fmt.Println()
+	fmt.Println(styles.BoxStyle.BorderForeground(styles.Gold).Render(fmt.Sprintf(
+		"⚠️  Could not reach the weather service.\n"+
+			"Showing last known data from %s ago.",
+		styles.WarningStyle(ageStr),
+	)))
+	fmt.Println()
+}
+
+func PrintCityNotFound(city string, suggestions []string) {
+	fmt.Println(styles.ErrorStyle(fmt.Sprintf("❌ City %q not found.", city)))
+
+	if len(suggestions) == 0 {
+		fmt.Println(styles.InfoStyle("No suggestions available — try a different spelling or add a country code (e.g. \"London,GB\")."))
+		return
+	}
+
+	fmt.Println()
+	fmt.Println(styles.InfoStyle("Did you mean one of these?"))
+	for _, s := range suggestions {
+		fmt.Printf("  %s %s\n", styles.WarningStyle("→"), s)
+	}
+	fmt.Println()
+	fmt.Println(styles.HintStyle.Render("Tip: add a country code to be specific, e.g. gust \"London,GB\""))
+}
+
 func PrintQuotaStatus(limit, used int, resetAt *time.Time, unlimited bool) {
 	if unlimited {
 		fmt.Println(styles.BoxStyle.Render(

@@ -12,6 +12,14 @@ import (
 	"github.com/josephburgess/gust/internal/models"
 )
 
+type CityNotFoundError struct {
+	City string
+}
+
+func (e *CityNotFoundError) Error() string {
+	return fmt.Sprintf("city not found: %s", e.City)
+}
+
 type WeatherResponse struct {
 	City    *models.City            `json:"city"`
 	Weather *models.OneCallResponse `json:"weather"`
@@ -93,6 +101,10 @@ func (c *Client) GetWeather(cityName string) (*WeatherResponse, error) {
 	if resp.StatusCode == http.StatusTooManyRequests {
 		body, _ := io.ReadAll(resp.Body)
 		return nil, fmt.Errorf("rate limit exceeded: %s", string(body))
+	}
+
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, &CityNotFoundError{City: cityName}
 	}
 
 	if resp.StatusCode != http.StatusOK {
