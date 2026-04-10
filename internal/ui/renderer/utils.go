@@ -1,7 +1,11 @@
 package renderer
 
 import (
+	"fmt"
+	"strings"
 	"time"
+
+	"github.com/josephburgess/gust/internal/ui/styles"
 )
 
 type BaseRenderer struct {
@@ -39,4 +43,8 @@ func (r *BaseRenderer) GetWindSpeedUnit() string {
 
 func FormatDateTime(timestamp int64, format string) string {
 	return time.Unix(timestamp, 0).Format(format)
+}
+
+func cityHeader(prefix, cityName string) string {
+	return styles.FormatHeader(fmt.Sprintf("%s %s", prefix, strings.ToUpper(cityName)))
 }

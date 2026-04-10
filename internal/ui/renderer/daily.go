@@ -2,7 +2,6 @@ package renderer
 
 import (
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/josephburgess/gust/internal/config"
@@ -11,7 +10,7 @@ import (
 )
 
 func (r *TerminalRenderer) RenderDailyForecast(city *models.City, weather *models.OneCallResponse, cfg *config.Config) {
-	fmt.Print(styles.FormatHeader(fmt.Sprintf("5-DAY FORECAST FOR %s", strings.ToUpper(city.Name))))
+	fmt.Print(cityHeader("5-DAY FORECAST FOR", city.Name))
 
 	if len(weather.Daily) > 0 {
 		tempUnit := r.GetTemperatureUnit()

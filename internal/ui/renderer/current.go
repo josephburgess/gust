@@ -2,7 +2,6 @@ package renderer
 
 import (
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/josephburgess/gust/internal/config"
@@ -13,7 +12,7 @@ import (
 func (r *TerminalRenderer) RenderCurrentWeather(city *models.City, weather *models.OneCallResponse, cfg *config.Config) {
 	current := weather.Current
 
-	fmt.Print(styles.FormatHeader(fmt.Sprintf("WEATHER FOR %s", strings.ToUpper(city.Name))))
+	fmt.Print(cityHeader("WEATHER FOR", city.Name))
 
 	if len(current.Weather) > 0 {
 		weatherCond := current.Weather[0]

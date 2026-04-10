@@ -3,7 +3,6 @@ package renderer
 import (
 	"fmt"
 	"math"
-	"strings"
 	"time"
 
 	"github.com/josephburgess/gust/internal/config"
@@ -12,7 +11,7 @@ import (
 )
 
 func (r *TerminalRenderer) RenderHourlyForecast(city *models.City, weather *models.OneCallResponse, config *config.Config) {
-	fmt.Print(styles.FormatHeader(fmt.Sprintf("24H FORECAST FOR %s", strings.ToUpper(city.Name))))
+	fmt.Print(cityHeader("24H FORECAST FOR", city.Name))
 
 	if len(weather.Hourly) > 0 {
 		hourLimit := int(math.Min(24, float64(len(weather.Hourly))))

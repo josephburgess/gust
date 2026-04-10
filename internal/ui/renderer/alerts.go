@@ -2,7 +2,6 @@ package renderer
 
 import (
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/josephburgess/gust/internal/config"
@@ -11,7 +10,7 @@ import (
 )
 
 func (r *TerminalRenderer) RenderAlerts(city *models.City, weather *models.OneCallResponse, cfg *config.Config) {
-	fmt.Print(styles.FormatHeader(fmt.Sprintf("WEATHER ALERTS FOR %s", strings.ToUpper(city.Name))))
+	fmt.Print(cityHeader("WEATHER ALERTS FOR", city.Name))
 
 	if len(weather.Alerts) == 0 {
 		fmt.Println("No weather alerts for this area.")
