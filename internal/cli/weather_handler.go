@@ -27,7 +27,7 @@ func fetchAndRenderWeather(city string, cfg *config.Config, authConfig *config.A
 	if !cli.Refresh && weatherCache != nil {
 		if cached, age, ok := weatherCache.Get(city, cfg.Units); ok {
 			ttlRemaining := cache.TTL - age
-			weatherRenderer := renderer.NewWeatherRenderer(cfg.Units)
+			weatherRenderer := newRenderer(cli, cfg.Units)
 			renderWeatherView(cli, weatherRenderer, cached.City, cached.Weather, cfg)
 			fmt.Printf("%s\n", styles.HintStyle.Render(
 				fmt.Sprintf("↩ cached %s · refreshes in %dm · gust -R to force refresh",
@@ -66,7 +66,7 @@ func fetchAndRenderWeather(city string, cfg *config.Config, authConfig *config.A
 		if weatherCache != nil && isNetworkError(err) {
 			if stale, age, ok := weatherCache.GetStale(city, cfg.Units); ok {
 				output.PrintStaleWarning(age)
-				weatherRenderer := renderer.NewWeatherRenderer(cfg.Units)
+				weatherRenderer := newRenderer(cli, cfg.Units)
 				renderWeatherView(cli, weatherRenderer, stale.City, stale.Weather, cfg)
 				return nil
 			}
@@ -105,10 +105,17 @@ func fetchAndRenderWeather(city string, cfg *config.Config, authConfig *config.A
 		weatherCache.Set(city, cfg.Units, weather)
 	}
 
-	weatherRenderer := renderer.NewWeatherRenderer(cfg.Units)
+	weatherRenderer := newRenderer(cli, cfg.Units)
 	renderWeatherView(cli, weatherRenderer, weather.City, weather.Weather, cfg)
 
 	return nil
+}
+
+func newRenderer(cli *CLI, units string) renderer.WeatherRenderer {
+	if cli.Pretty {
+		return renderer.NewPrettyRenderer(units)
+	}
+	return renderer.NewWeatherRenderer(units)
 }
 
 func handleCityNotFound(client *api.Client, city string) error {

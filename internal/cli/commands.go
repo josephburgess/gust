@@ -23,6 +23,7 @@ type CLI struct {
 	Daily    bool `name:"daily" short:"y" help:"Show 5-day forecast"`
 	Hourly   bool `name:"hourly" short:"r" help:"Show 24-hour (hourly) forecast"`
 	Alerts   bool `name:"alerts" short:"a" help:"Show weather alerts"`
+	Pretty   bool `name:"pretty" short:"p" help:"Interactive TUI with tabs and scrolling"`
 	Status   bool `name:"status" short:"s" help:"Show your API quota usage"`
 	Refresh  bool `name:"refresh" short:"R" help:"Bypass cache and fetch fresh weather data"`
 
