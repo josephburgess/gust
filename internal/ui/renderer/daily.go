@@ -3,7 +3,6 @@ package renderer
 import (
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/josephburgess/gust/internal/config"
 	"github.com/josephburgess/gust/internal/models"
@@ -21,7 +20,7 @@ func (r *TerminalRenderer) RenderDailyForecast(city *models.City, weather *model
 				break
 			}
 
-			date := time.Unix(day.Dt, 0).Format("Mon Jan 2")
+			date := weather.LocalTime(day.Dt).Format("Mon Jan 2")
 
 			if i > 0 {
 				fmt.Println()
@@ -63,9 +62,10 @@ func (r *TerminalRenderer) RenderDailyForecast(city *models.City, weather *model
 			windUnit := r.GetWindSpeedUnit()
 			windSpeed := r.FormatWindSpeed(day.WindSpeed)
 
-			fmt.Printf("  Wind: %.1f %s %s\n",
+			fmt.Printf("  Wind: %.1f %s %s %s\n",
 				windSpeed,
 				windUnit,
+				models.GetWindArrow(day.WindDeg),
 				models.GetWindDirection(day.WindDeg))
 
 			fmt.Printf("  UV Index: %.1f\n", day.UVI)

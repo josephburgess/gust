@@ -3,7 +3,6 @@ package renderer
 import (
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/josephburgess/gust/internal/config"
 	"github.com/josephburgess/gust/internal/models"
@@ -26,8 +25,8 @@ func (r *TerminalRenderer) RenderAlerts(city *models.City, weather *models.OneCa
 		fmt.Printf("%s\n", styles.AlertStyle(fmt.Sprintf("⚠️  %s", alert.Event)))
 		fmt.Printf("Issued by: %s\n", alert.SenderName)
 		fmt.Printf("Valid: %s to %s\n\n",
-			styles.TimeStyle(time.Unix(alert.Start, 0).Format("Mon Jan 2 15:04")),
-			styles.TimeStyle(time.Unix(alert.End, 0).Format("Mon Jan 2 15:04")))
+			styles.TimeStyle(weather.LocalTime(alert.Start).Format("Mon Jan 2 15:04")),
+			styles.TimeStyle(weather.LocalTime(alert.End).Format("Mon Jan 2 15:04")))
 
 		fmt.Println(alert.Description)
 		fmt.Println()

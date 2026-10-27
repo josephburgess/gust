@@ -133,6 +133,11 @@ type Alert struct {
 	Tags        []string `json:"tags"`
 }
 
+// LocalTime converts a unix timestamp to the time in the city's zone.
+func (w *OneCallResponse) LocalTime(ts int64) time.Time {
+	return time.Unix(ts, 0).In(time.FixedZone(w.Timezone, w.TimezoneOffset))
+}
+
 func GetWeatherEmoji(id int, current *CurrentWeather) string {
 	if id == 800 && current != nil && (current.Dt > current.Sunset || current.Dt < current.Sunrise) {
 		return "🌙" // clear night
@@ -165,6 +170,14 @@ func GetWindDirection(degrees int) string {
 	return directions[index]
 }
 
+// GetWindArrow returns an arrow in the direction the wind blows. The API degrees give the direction it comes from.
+func GetWindArrow(degrees int) string {
+	normalizedDegrees := ((degrees+180)%360 + 360) % 360
+	arrows := []string{"↑", "↗", "→", "↘", "↓", "↙", "←", "↖"}
+	index := int((float64(normalizedDegrees)+22.5)/45) % 8
+	return arrows[index]
+}
+
 func VisibilityToString(meters int) string {
 	if meters >= 10000 {
 		return "Excellent (10+ km)"
@@ -191,7 +204,7 @@ func GetWeatherTip(weather *OneCallResponse, units string) string {
 
 	for i, hour := range hourly {
 		if i > 0 && i < 12 { // next 12hrs
-			precipTime := time.Unix(hour.Dt, 0).Format("15:04")
+			precipTime := weather.LocalTime(hour.Dt).Format("15:04")
 
 			if hour.Snow != nil && hour.Snow.OneHour > 0.1 {
 				return fmt.Sprintf("Snow expected around %s - dress warmly and wear appropriate footwear! ❄️", precipTime)

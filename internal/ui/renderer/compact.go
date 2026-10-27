@@ -3,7 +3,6 @@ package renderer
 import (
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/josephburgess/gust/internal/config"
 	"github.com/josephburgess/gust/internal/models"
@@ -31,8 +30,8 @@ func (r *TerminalRenderer) RenderCompactWeather(city *models.City, weather *mode
 
 		windUnit := r.GetWindSpeedUnit()
 		windSpeed := r.FormatWindSpeed(current.WindSpeed)
-		windDir := models.GetWindDirection(current.WindDeg)
-		fmt.Printf("💧 %-3d%%           💨 %-4.1f %-3s %-2s",
+		windDir := models.GetWindArrow(current.WindDeg) + " " + models.GetWindDirection(current.WindDeg)
+		fmt.Printf("💧 %-3d%%           💨 %-4.1f %-3s %-4s",
 			current.Humidity,
 			windSpeed,
 			windUnit,
@@ -44,8 +43,8 @@ func (r *TerminalRenderer) RenderCompactWeather(city *models.City, weather *mode
 			fmt.Printf("     ❄️ %.1f mm", current.Snow.OneHour)
 		}
 		fmt.Println()
-		sunrise := time.Unix(current.Sunrise, 0).Format("15:04")
-		sunset := time.Unix(current.Sunset, 0).Format("15:04")
+		sunrise := weather.LocalTime(current.Sunrise).Format("15:04")
+		sunset := weather.LocalTime(current.Sunset).Format("15:04")
 		fmt.Printf("🌅 %-8s       🌇 %-8s", sunrise, sunset)
 		if len(weather.Alerts) > 0 {
 			fmt.Printf("     %s",

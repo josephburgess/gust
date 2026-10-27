@@ -87,6 +87,39 @@ func TestGetWindDirection(t *testing.T) {
 	}
 }
 
+func TestGetWindArrow(t *testing.T) {
+	tests := []struct {
+		degrees  int
+		expected string
+	}{
+		{0, "↓"},   // from N
+		{90, "←"},  // from E
+		{180, "↑"}, // from S
+		{225, "↗"}, // from SW
+		{270, "→"}, // from W
+		{360, "↓"},
+		{-45, "↘"}, // from NW
+	}
+
+	for _, test := range tests {
+		result := GetWindArrow(test.degrees)
+		if result != test.expected {
+			t.Errorf("GetWindArrow(%d) = %s, expected %s", test.degrees, result, test.expected)
+		}
+	}
+}
+
+func TestLocalTime(t *testing.T) {
+	weather := &OneCallResponse{Timezone: "Asia/Tokyo", TimezoneOffset: 9 * 3600}
+
+	// 2024-01-01 00:00 UTC
+	result := weather.LocalTime(1704067200).Format("2006-01-02 15:04")
+
+	if result != "2024-01-01 09:00" {
+		t.Errorf("LocalTime() = %s, expected 2024-01-01 09:00", result)
+	}
+}
+
 func TestVisibilityToString(t *testing.T) {
 	tests := []struct {
 		meters   int

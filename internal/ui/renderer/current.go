@@ -3,7 +3,6 @@ package renderer
 import (
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/josephburgess/gust/internal/config"
 	"github.com/josephburgess/gust/internal/models"
@@ -44,9 +43,9 @@ func (r *TerminalRenderer) RenderCurrentWeather(city *models.City, weather *mode
 		fmt.Printf("Visibility: %s\n", models.VisibilityToString(current.Visibility))
 
 		fmt.Printf("Sunrise: %s %s  Sunset: %s %s\n",
-			time.Unix(current.Sunrise, 0).Format("15:04"),
+			weather.LocalTime(current.Sunrise).Format("15:04"),
 			"🌅",
-			time.Unix(current.Sunset, 0).Format("15:04"),
+			weather.LocalTime(current.Sunset).Format("15:04"),
 			"🌇")
 		r.displayWeatherTip(weather, cfg)
 		fmt.Printf("\n")

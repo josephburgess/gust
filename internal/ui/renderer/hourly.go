@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"math"
 	"strings"
-	"time"
 
 	"github.com/josephburgess/gust/internal/config"
 	"github.com/josephburgess/gust/internal/models"
@@ -26,7 +25,7 @@ func (r *TerminalRenderer) RenderHourlyForecast(city *models.City, weather *mode
 				continue
 			}
 
-			t := time.Unix(hour.Dt, 0)
+			t := weather.LocalTime(hour.Dt)
 			day := t.Format("Mon Jan 2")
 			hourStr := t.Format("15:04")
 

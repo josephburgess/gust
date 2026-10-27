@@ -29,16 +29,16 @@ func (r *TerminalRenderer) displayWindInfo(speed float64, deg int, gust float64)
 		fmt.Printf("Wind: %.1f %s %s %s (Gusts: %.1f %s)\n",
 			windSpeed,
 			windUnit,
+			models.GetWindArrow(deg),
 			models.GetWindDirection(deg),
-			"💨",
 			gustSpeed,
 			windUnit)
 	} else {
 		fmt.Printf("Wind: %.1f %s %s %s\n",
 			windSpeed,
 			windUnit,
-			models.GetWindDirection(deg),
-			"💨")
+			models.GetWindArrow(deg),
+			models.GetWindDirection(deg))
 	}
 }
 
