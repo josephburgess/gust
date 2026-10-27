@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/charmbracelet/bubbles/spinner"
-	tea "github.com/charmbracelet/bubbletea"
+	"charm.land/bubbles/v2/spinner"
+	tea "charm.land/bubbletea/v2"
 	"github.com/josephburgess/gust/internal/config"
 	"github.com/josephburgess/gust/internal/models"
 )
@@ -29,7 +29,7 @@ func (m Model) searchCities() tea.Cmd {
 	}
 }
 
-func (m Model) handleApiKeyInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+func (m Model) handleApiKeyInput(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "ctrl+c":
 		m.Quitting = true
@@ -66,7 +66,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
 	switch msg := msg.(type) {
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		switch m.State {
 		case StateCity:
 			return m.handleTextInput(msg)
@@ -122,7 +122,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
-func (m Model) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+func (m Model) handleKeyPress(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "ctrl+c":
 		m.Quitting = true
@@ -282,7 +282,7 @@ func (m Model) handleDownKey() (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m Model) handleTextInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+func (m Model) handleTextInput(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "ctrl+c":
 		m.Quitting = true

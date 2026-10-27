@@ -3,8 +3,8 @@ package setup
 import (
 	"testing"
 
-	"github.com/charmbracelet/bubbles/spinner"
-	tea "github.com/charmbracelet/bubbletea"
+	"charm.land/bubbles/v2/spinner"
+	tea "charm.land/bubbletea/v2"
 	"github.com/josephburgess/gust/internal/api"
 	"github.com/josephburgess/gust/internal/config"
 	"github.com/josephburgess/gust/internal/models"
@@ -93,7 +93,7 @@ func TestKeyHandling(t *testing.T) {
 		name          string
 		state         SetupState
 		key           string
-		keyType       tea.KeyType
+		keyMsg        tea.KeyPressMsg
 		expectedState SetupState
 		expectedQuit  bool
 	}{
@@ -101,7 +101,7 @@ func TestKeyHandling(t *testing.T) {
 			name:          "ctrl+c quits from any state",
 			state:         StateCity,
 			key:           "ctrl+c",
-			keyType:       tea.KeyCtrlC,
+			keyMsg:        tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl},
 			expectedState: StateCity,
 			expectedQuit:  true,
 		},
@@ -109,7 +109,7 @@ func TestKeyHandling(t *testing.T) {
 			name:          "esc from city select returns to city input",
 			state:         StateCitySelect,
 			key:           "esc",
-			keyType:       tea.KeyEsc,
+			keyMsg:        tea.KeyPressMsg{Code: tea.KeyEscape},
 			expectedState: StateCity,
 			expectedQuit:  false,
 		},
@@ -117,7 +117,7 @@ func TestKeyHandling(t *testing.T) {
 			name:          "enter in city select transitions to units state",
 			state:         StateCitySelect,
 			key:           "enter",
-			keyType:       tea.KeyEnter,
+			keyMsg:        tea.KeyPressMsg{Code: tea.KeyEnter},
 			expectedState: StateUnits,
 			expectedQuit:  false,
 		},
@@ -125,7 +125,7 @@ func TestKeyHandling(t *testing.T) {
 			name:          "down key in units state increments cursor",
 			state:         StateUnits,
 			key:           "down",
-			keyType:       tea.KeyDown,
+			keyMsg:        tea.KeyPressMsg{Code: tea.KeyDown},
 			expectedState: StateUnits,
 			expectedQuit:  false,
 		},
@@ -133,7 +133,7 @@ func TestKeyHandling(t *testing.T) {
 			name:          "up key in view state decrements cursor",
 			state:         StateView,
 			key:           "up",
-			keyType:       tea.KeyUp,
+			keyMsg:        tea.KeyPressMsg{Code: tea.KeyUp},
 			expectedState: StateView,
 			expectedQuit:  false,
 		},
@@ -141,7 +141,7 @@ func TestKeyHandling(t *testing.T) {
 			name:          "j key acts as down key",
 			state:         StateTips,
 			key:           "j",
-			keyType:       tea.KeyRunes,
+			keyMsg:        tea.KeyPressMsg{Code: 'j', Text: "j"},
 			expectedState: StateTips,
 			expectedQuit:  false,
 		},
@@ -149,7 +149,7 @@ func TestKeyHandling(t *testing.T) {
 			name:          "k key acts as up key",
 			state:         StateAuth,
 			key:           "k",
-			keyType:       tea.KeyRunes,
+			keyMsg:        tea.KeyPressMsg{Code: 'k', Text: "k"},
 			expectedState: StateAuth,
 			expectedQuit:  false,
 		},
@@ -179,16 +179,8 @@ func TestKeyHandling(t *testing.T) {
 				initialCursor = m.AuthCursor
 			}
 
-			// Create key message
-			var keyMsg tea.KeyMsg
-			if tt.keyType == tea.KeyRunes {
-				keyMsg = tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(tt.key)}
-			} else {
-				keyMsg = tea.KeyMsg{Type: tt.keyType}
-			}
-
 			// Call Update
-			updatedModel, cmd := m.Update(keyMsg)
+			updatedModel, cmd := m.Update(tt.keyMsg)
 			updated := updatedModel.(Model)
 
 			// Verify expected state
@@ -316,7 +308,7 @@ func TestEnterKeyHandling(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			model := tt.setupModel()
-			updatedModel, _ := model.Update(tea.KeyMsg{Type: tea.KeyEnter})
+			updatedModel, _ := model.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 			updated := updatedModel.(Model)
 			assert.Equal(t, tt.expectedState, updated.State)
 		})
@@ -358,7 +350,7 @@ func TestCursorMovement(t *testing.T) {
 		name       string
 		state      SetupState
 		setupModel func() Model
-		key        tea.KeyMsg
+		key        tea.KeyPressMsg
 		checkFunc  func(*testing.T, Model)
 	}{
 		{
@@ -369,7 +361,7 @@ func TestCursorMovement(t *testing.T) {
 				m.UnitCursor = 1
 				return m
 			},
-			key: tea.KeyMsg{Type: tea.KeyUp},
+			key: tea.KeyPressMsg{Code: tea.KeyUp},
 			checkFunc: func(t *testing.T, m Model) {
 				assert.Equal(t, 0, m.UnitCursor)
 			},
@@ -382,7 +374,7 @@ func TestCursorMovement(t *testing.T) {
 				m.UnitCursor = 0
 				return m
 			},
-			key: tea.KeyMsg{Type: tea.KeyDown},
+			key: tea.KeyPressMsg{Code: tea.KeyDown},
 			checkFunc: func(t *testing.T, m Model) {
 				assert.Equal(t, 1, m.UnitCursor)
 			},
@@ -395,7 +387,7 @@ func TestCursorMovement(t *testing.T) {
 				m.UnitCursor = 0
 				return m
 			},
-			key: tea.KeyMsg{Type: tea.KeyUp},
+			key: tea.KeyPressMsg{Code: tea.KeyUp},
 			checkFunc: func(t *testing.T, m Model) {
 				assert.Equal(t, 0, m.UnitCursor, "cursor shouldn't go below 0")
 			},
@@ -408,7 +400,7 @@ func TestCursorMovement(t *testing.T) {
 				m.UnitCursor = 2 // Last option
 				return m
 			},
-			key: tea.KeyMsg{Type: tea.KeyDown},
+			key: tea.KeyPressMsg{Code: tea.KeyDown},
 			checkFunc: func(t *testing.T, m Model) {
 				assert.Equal(t, 2, m.UnitCursor, "cursor shouldn't exceed options length")
 			},
@@ -421,7 +413,7 @@ func TestCursorMovement(t *testing.T) {
 				m.ViewCursor = 1
 				return m
 			},
-			key: tea.KeyMsg{Type: tea.KeyDown},
+			key: tea.KeyPressMsg{Code: tea.KeyDown},
 			checkFunc: func(t *testing.T, m Model) {
 				assert.Equal(t, 2, m.ViewCursor)
 			},
@@ -439,7 +431,7 @@ func TestCursorMovement(t *testing.T) {
 				m.CityCursor = 0
 				return m
 			},
-			key: tea.KeyMsg{Type: tea.KeyDown},
+			key: tea.KeyPressMsg{Code: tea.KeyDown},
 			checkFunc: func(t *testing.T, m Model) {
 				assert.Equal(t, 1, m.CityCursor)
 			},
@@ -463,7 +455,7 @@ func TestTextInputHandling(t *testing.T) {
 		m.State = StateCity
 		m.CityInput.SetValue("London")
 
-		updatedModel, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+		updatedModel, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 		updated := updatedModel.(Model)
 
 		assert.Equal(t, StateCitySearch, updated.State)
@@ -476,7 +468,7 @@ func TestTextInputHandling(t *testing.T) {
 		m.State = StateCity
 		m.CityInput.SetValue("")
 
-		updatedModel, _ := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+		updatedModel, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 		updated := updatedModel.(Model)
 
 		assert.Equal(t, StateCity, updated.State)
@@ -487,7 +479,7 @@ func TestTextInputHandling(t *testing.T) {
 		m.State = StateCity
 
 		// Type a character
-		updatedModel, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("L")})
+		updatedModel, cmd := m.Update(tea.KeyPressMsg{Code: 'L', Text: "L"})
 		updated := updatedModel.(Model)
 
 		assert.Equal(t, StateCity, updated.State)
@@ -499,7 +491,7 @@ func TestTextInputHandling(t *testing.T) {
 		m := NewModel(&config.Config{}, false, &api.Client{})
 		m.State = StateCity
 
-		updatedModel, cmd := m.Update(tea.KeyMsg{Type: tea.KeyCtrlC})
+		updatedModel, cmd := m.Update(tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl})
 		updated := updatedModel.(Model)
 
 		assert.True(t, updated.Quitting)

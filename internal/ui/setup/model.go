@@ -1,9 +1,9 @@
 package setup
 
 import (
-	"github.com/charmbracelet/bubbles/textinput"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/textinput"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/josephburgess/gust/internal/api"
 	"github.com/josephburgess/gust/internal/config"
 	"github.com/josephburgess/gust/internal/models"
@@ -75,22 +75,25 @@ type Model struct {
 
 // creates a new setup model
 func NewModel(cfg *config.Config, needsAuth bool, client *api.Client) Model {
+	inputStyles := textinput.DefaultDarkStyles()
+	for _, state := range []*textinput.StyleState{&inputStyles.Focused, &inputStyles.Blurred} {
+		state.Prompt = lipgloss.NewStyle().Foreground(styles.Love)
+		state.Text = lipgloss.NewStyle().Foreground(styles.Text)
+	}
+	inputStyles.Cursor.Color = styles.Gold
+
 	ti := textinput.New()
 	ti.Placeholder = "Wherever the wind blows..."
 	ti.Focus()
 	ti.CharLimit = 50
-	ti.Width = len(ti.Placeholder)
-	ti.PromptStyle = lipgloss.NewStyle().Foreground(styles.Love)
-	ti.TextStyle = lipgloss.NewStyle().Foreground(styles.Text)
-	ti.Cursor.Style = lipgloss.NewStyle().Foreground(styles.Gold)
+	ti.SetWidth(len(ti.Placeholder))
+	ti.SetStyles(inputStyles)
 
 	apiKeyInput := textinput.New()
 	apiKeyInput.Placeholder = "Paste your OpenWeather API key here..."
 	apiKeyInput.CharLimit = 64
-	apiKeyInput.Width = len(apiKeyInput.Placeholder)
-	apiKeyInput.PromptStyle = lipgloss.NewStyle().Foreground(styles.Love)
-	apiKeyInput.TextStyle = lipgloss.NewStyle().Foreground(styles.Text)
-	apiKeyInput.Cursor.Style = lipgloss.NewStyle().Foreground(styles.Gold)
+	apiKeyInput.SetWidth(len(apiKeyInput.Placeholder))
+	apiKeyInput.SetStyles(inputStyles)
 
 	unitCursor := 0
 	switch cfg.Units {

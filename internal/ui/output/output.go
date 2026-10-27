@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"time"
 
+	"charm.land/lipgloss/v2"
+
 	"github.com/josephburgess/gust/internal/ui/styles"
 )
 
@@ -28,7 +30,7 @@ func PrintHeader(title string) {
 }
 
 func PrintBoxedMessage(message string) {
-	fmt.Println(styles.BoxStyle.Render(message))
+	lipgloss.Println(styles.BoxStyle.Render(message))
 }
 
 func PrintRateLimitWarning(remaining, limit int, resetTime time.Time) {
@@ -37,7 +39,7 @@ func PrintRateLimitWarning(remaining, limit int, resetTime time.Time) {
 	resetFormatted := resetTime.Format("15:04")
 
 	fmt.Println()
-	fmt.Println(styles.BoxStyle.Render(fmt.Sprintf(
+	lipgloss.Println(styles.BoxStyle.Render(fmt.Sprintf(
 		"⚠️ API Rate Limit Warning\n\n"+
 			"You have %s requests remaining out of %d.\n"+
 			"Your rate limit will reset at %s (%d minutes from now).",
@@ -55,7 +57,7 @@ func PrintRateLimitError(limit int, resetTime time.Time) {
 	resetFormatted := resetTime.Format("15:04")
 
 	fmt.Println()
-	fmt.Println(styles.BoxStyle.BorderForeground(styles.Love).Render(fmt.Sprintf(
+	lipgloss.Println(styles.BoxStyle.BorderForeground(styles.Love).Render(fmt.Sprintf(
 		"❌ API Rate Limit Reached\n\n"+
 			"Sorry - you have used all %d available requests.\n"+
 			"You must really like checking the weather!!\n"+

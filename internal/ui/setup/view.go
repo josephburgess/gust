@@ -1,10 +1,11 @@
 package setup
 
 import (
+	tea "charm.land/bubbletea/v2"
 	"fmt"
 	"strings"
 
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/lipgloss/v2"
 )
 
 func ClearViewport(width, height int) string {
@@ -21,7 +22,7 @@ func ClearViewport(width, height int) string {
 }
 
 // rendr current state of setup wizard
-func (m Model) View() string {
+func (m Model) View() tea.View {
 	var result strings.Builder
 
 	if m.Width > 0 && m.Height > 0 {
@@ -31,7 +32,9 @@ func (m Model) View() string {
 	content := m.buildContent()
 	result.WriteString(m.centerContent(content))
 
-	return result.String()
+	v := tea.NewView(result.String())
+	v.AltScreen = true
+	return v
 }
 
 // create correct content for currnet state

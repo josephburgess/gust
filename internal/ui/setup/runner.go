@@ -3,7 +3,7 @@ package setup
 import (
 	"fmt"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 	"github.com/josephburgess/gust/internal/api"
 	"github.com/josephburgess/gust/internal/config"
 )
@@ -25,7 +25,7 @@ func RunSetup(cfg *config.Config, needsAuth bool) error {
 	}
 
 	model := NewModel(cfg, needsAuth, apiClient)
-	p := tea.NewProgram(model, tea.WithAltScreen())
+	p := tea.NewProgram(model)
 
 	finalModel, err := p.Run()
 	if err != nil {

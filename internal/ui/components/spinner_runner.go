@@ -2,10 +2,10 @@ package components
 
 import (
 	"fmt"
+	"image/color"
 
-	"github.com/charmbracelet/bubbles/spinner"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/spinner"
+	tea "charm.land/bubbletea/v2"
 	"github.com/josephburgess/gust/internal/ui/styles"
 )
 
@@ -31,7 +31,7 @@ type SpinnerRunnerModel[T any] struct {
 func NewSpinnerRunner[T any](
 	message string,
 	spinnerType spinner.Spinner,
-	color lipgloss.Color,
+	color color.Color,
 	fn func() (T, error),
 ) SpinnerRunnerModel[T] {
 	return SpinnerRunnerModel[T]{
@@ -58,8 +58,8 @@ func (m SpinnerRunnerModel[T]) Init() tea.Cmd {
 // handles messages and updates state
 func (m SpinnerRunnerModel[T]) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
-	case tea.KeyMsg:
-		if msg.Type == tea.KeyCtrlC {
+	case tea.KeyPressMsg:
+		if msg.String() == "ctrl+c" {
 			return m, tea.Quit
 		}
 	case spinner.TickMsg:
@@ -79,15 +79,15 @@ func (m SpinnerRunnerModel[T]) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 // render
-func (m SpinnerRunnerModel[T]) View() string {
+func (m SpinnerRunnerModel[T]) View() tea.View {
 	if m.done {
-		return ""
+		return tea.NewView("")
 	}
-	return fmt.Sprintf("%s %s", m.spinner.View(), styles.ProgressMessageStyle.Render(m.message))
+	return tea.NewView(fmt.Sprintf("%s %s", m.spinner.View(), styles.ProgressMessageStyle.Render(m.message)))
 }
 
 // custom func that creates and runs a SpinnerRunnerModel
-func RunWithSpinner[T any](message string, spinnerType spinner.Spinner, color lipgloss.Color, fn func() (T, error)) (T, error) {
+func RunWithSpinner[T any](message string, spinnerType spinner.Spinner, color color.Color, fn func() (T, error)) (T, error) {
 	model := NewSpinnerRunner(message, spinnerType, color, fn)
 	p := tea.NewProgram(model)
 	finalModel, err := p.Run()

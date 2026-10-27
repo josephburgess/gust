@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/charmbracelet/x/ansi"
 	"github.com/josephburgess/gust/internal/api"
 	"github.com/josephburgess/gust/internal/config"
 	"github.com/josephburgess/gust/internal/models"
@@ -179,7 +180,7 @@ func TestView(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			model := tt.setupModel()
-			view := model.View()
+			view := model.View().Content
 
 			for _, expectedPart := range tt.expectedParts {
 				assert.Contains(t, view, expectedPart)
@@ -241,7 +242,7 @@ func TestRenderOptions(t *testing.T) {
 
 	for cursor := 0; cursor < len(options); cursor++ {
 		t.Run("cursor at position "+string(rune('0'+cursor)), func(t *testing.T) {
-			result := model.renderOptions(options, cursor)
+			result := ansi.Strip(model.renderOptions(options, cursor))
 
 			for i, option := range options {
 				if i == cursor {
@@ -340,7 +341,7 @@ func TestViewRendering(t *testing.T) {
 			model.Width = tc.width
 			model.Height = tc.height
 
-			view := model.View()
+			view := model.View().Content
 
 			assert.Contains(t, view, "____ ___  _______/ /_")
 			assert.Contains(t, view, "Simple terminal weather")
