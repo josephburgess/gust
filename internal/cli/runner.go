@@ -6,6 +6,7 @@ import (
 	"github.com/alecthomas/kong"
 	"github.com/josephburgess/gust/internal/config"
 	"github.com/josephburgess/gust/internal/ui/output"
+	"github.com/josephburgess/gust/internal/ui/tui"
 )
 
 func Run(ctx *kong.Context, cli *CLI) error {
@@ -42,6 +43,10 @@ func Run(ctx *kong.Context, cli *CLI) error {
 	city := determineCityName(cli.City, cli.Args, cfg.DefaultCity)
 	if city == "" {
 		return handleMissingCity()
+	}
+
+	if cli.Pretty {
+		return tui.Run(city, cfg, authConfig, dashboardTab(cli, cfg))
 	}
 
 	return fetchAndRenderWeather(city, cfg, authConfig, cli)

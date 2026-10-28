@@ -4,6 +4,8 @@ import (
 	"testing"
 
 	"github.com/josephburgess/gust/internal/config"
+	"github.com/josephburgess/gust/internal/ui/tui"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
 
@@ -158,6 +160,27 @@ func TestRenderWeatherView_FlagsAndPriority(t *testing.T) {
 			renderWeatherView(tc.cli, mockRenderer, mockCity, mockWeather, mockConfig)
 
 			mockRenderer.AssertExpectations(t)
+		})
+	}
+}
+
+func TestDashboardTab(t *testing.T) {
+	tests := []struct {
+		name string
+		cli  *CLI
+		view string
+		want tui.Tab
+	}{
+		{"alerts flag", &CLI{Alerts: true}, "hourly", tui.TabAlerts},
+		{"hourly flag", &CLI{Hourly: true}, "daily", tui.TabHourly},
+		{"daily flag", &CLI{Daily: true}, "default", tui.TabDaily},
+		{"no flag uses the configured view", &CLI{}, "hourly", tui.TabHourly},
+		{"old full view opens now", &CLI{}, "full", tui.TabNow},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, dashboardTab(tt.cli, &config.Config{DefaultView: tt.view}))
 		})
 	}
 }

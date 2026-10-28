@@ -1,0 +1,90 @@
+package tui
+
+import (
+	"time"
+
+	"charm.land/bubbles/v2/spinner"
+	"charm.land/lipgloss/v2"
+	"github.com/josephburgess/gust/internal/api"
+	"github.com/josephburgess/gust/internal/models"
+	"github.com/josephburgess/gust/internal/ui/styles"
+)
+
+type Tab int
+
+const (
+	TabNow Tab = iota
+	TabHourly
+	TabDaily
+	TabAlerts
+)
+
+var tabNames = []string{"Now", "Hourly", "5-day", "Alerts"}
+
+// TabFromView maps a stored view value to its tab. Old values ("default", "full") open Now.
+func TabFromView(view string) Tab {
+	switch view {
+	case "hourly":
+		return TabHourly
+	case "daily":
+		return TabDaily
+	default:
+		return TabNow
+	}
+}
+
+// FetchFunc gets the weather for a city in the given units.
+type FetchFunc func(city, units string) (*api.WeatherResponse, error)
+
+type weatherMsg struct {
+	resp *api.WeatherResponse
+	err  error
+}
+
+// clockMsg redraws the header clock and the "updated" age.
+type clockMsg time.Time
+
+type Model struct {
+	tab      Tab
+	width    int
+	height   int
+	city     string
+	units    string
+	showTips bool
+	fetch    FetchFunc
+
+	location  *models.City
+	weather   *models.OneCallResponse
+	fetchedAt time.Time
+	loading   bool
+	err       error
+
+	spinner spinner.Model
+	now     func() time.Time
+}
+
+func NewModel(city, units string, showTips bool, tab Tab, fetch FetchFunc) Model {
+	s := spinner.New(spinner.WithSpinner(spinner.Dot))
+	s.Style = lipgloss.NewStyle().Foreground(styles.Gold)
+	return Model{
+		tab:      tab,
+		city:     city,
+		units:    units,
+		showTips: showTips,
+		fetch:    fetch,
+		loading:  true,
+		spinner:  s,
+		now:      time.Now,
+	}
+}
+
+// cityLabel is the resolved "Name, CC", or the requested name before the first fetch.
+func (m Model) cityLabel() string {
+	if m.location == nil {
+		return m.city
+	}
+	if m.location.Country == "" {
+		return m.location.Name
+	}
+	return m.location.Name + ", " + m.location.Country
+}

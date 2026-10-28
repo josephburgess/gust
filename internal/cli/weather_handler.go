@@ -12,6 +12,7 @@ import (
 	"github.com/josephburgess/gust/internal/ui/output"
 	"github.com/josephburgess/gust/internal/ui/renderer"
 	"github.com/josephburgess/gust/internal/ui/styles"
+	"github.com/josephburgess/gust/internal/ui/tui"
 )
 
 func fetchAndRenderWeather(city string, cfg *config.Config, authConfig *config.AuthConfig, cli *CLI) error {
@@ -98,5 +99,19 @@ func renderWeatherView(cli *CLI, weatherRenderer renderer.WeatherRenderer, city 
 		default:
 			weatherRenderer.RenderCurrentWeather(city, weather, cfg)
 		}
+	}
+}
+
+// dashboardTab picks the opening tab: a display flag wins, then the configured view.
+func dashboardTab(cli *CLI, cfg *config.Config) tui.Tab {
+	switch {
+	case cli.Alerts:
+		return tui.TabAlerts
+	case cli.Hourly:
+		return tui.TabHourly
+	case cli.Daily:
+		return tui.TabDaily
+	default:
+		return tui.TabFromView(cfg.DefaultView)
 	}
 }
