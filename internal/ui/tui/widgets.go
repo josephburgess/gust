@@ -1,8 +1,14 @@
 package tui
 
 import (
+	"fmt"
+	"image/color"
 	"math"
 	"strings"
+
+	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/ansi"
+	"github.com/josephburgess/gust/internal/ui/styles"
 )
 
 var sparkChars = []rune("▁▂▃▄▅▆▇█")
@@ -64,4 +70,118 @@ func minMax(vals []float64) (float64, float64) {
 
 func clamp(v, lo, hi int) int {
 	return min(max(v, lo), hi)
+}
+
+var bigGlyphs = map[rune][5]string{
+	'0': {"█▀▀▀█", "█   █", "█   █", "█   █", "▀▀▀▀▀"},
+	'1': {" ▀█  ", "  █  ", "  █  ", "  █  ", "▀▀▀▀▀"},
+	'2': {"▀▀▀▀█", "    █", "█▀▀▀▀", "█    ", "▀▀▀▀▀"},
+	'3': {"▀▀▀▀█", "    █", " ▀▀▀█", "    █", "▀▀▀▀▀"},
+	'4': {"█   █", "█   █", "▀▀▀▀█", "    █", "    ▀"},
+	'5': {"█▀▀▀▀", "█    ", "▀▀▀▀█", "    █", "▀▀▀▀▀"},
+	'6': {"█▀▀▀▀", "█    ", "█▀▀▀█", "█   █", "▀▀▀▀▀"},
+	'7': {"▀▀▀▀█", "    █", "    █", "    █", "    ▀"},
+	'8': {"█▀▀▀█", "█   █", "█▀▀▀█", "█   █", "▀▀▀▀▀"},
+	'9': {"█▀▀▀█", "█   █", "▀▀▀▀█", "    █", "▀▀▀▀▀"},
+	'-': {"   ", "   ", "▀▀▀", "   ", "   "},
+	'°': {"█▀█", "▀▀▀", "   ", "   ", "   "},
+}
+
+// BigTemp renders t followed by a degree sign in a 5-row block font.
+func BigTemp(t int) []string {
+	rows := make([]string, 5)
+	for i, r := range fmt.Sprintf("%d°", t) {
+		for row := range rows {
+			if i > 0 {
+				rows[row] += " "
+			}
+			rows[row] += bigGlyphs[r][row]
+		}
+	}
+	return rows
+}
+
+type iconPart struct {
+	text  string
+	color color.Color
+}
+
+const iconWidth = 13
+
+var (
+	cloudTop = []iconPart{{"     .-.     ", styles.Subtle}}
+	cloudMid = []iconPart{{"    (   ).   ", styles.Subtle}}
+	cloudLow = []iconPart{{"   (___(__)  ", styles.Subtle}}
+
+	icons = map[string][][]iconPart{
+		"storm": {cloudTop, cloudMid, cloudLow,
+			{{"    ‚'", styles.Foam}, {"/_", styles.Gold}, {"‚'", styles.Foam}},
+			{{"     ‚' ", styles.Foam}, {"/", styles.Gold}, {" ‚'", styles.Foam}}},
+		"drizzle": {cloudTop, cloudMid, cloudLow,
+			{{"     ' ' '", styles.Foam}},
+			{{"    ' ' '", styles.Foam}}},
+		"rain": {cloudTop, cloudMid, cloudLow,
+			{{"    ‚'‚'‚'", styles.Foam}},
+			{{"    ‚'‚'‚'", styles.Foam}}},
+		"snow": {cloudTop, cloudMid, cloudLow,
+			{{"    *  *  *", styles.Foam}},
+			{{"   *  *  *", styles.Foam}}},
+		"fog": {{},
+			{{" _ - _ - _ - ", styles.Subtle}},
+			{{"  _ - _ - _  ", styles.Subtle}},
+			{{" _ - _ - _ - ", styles.Subtle}},
+			{}},
+		"clear": {
+			{{"    \\   /    ", styles.Gold}},
+			{{"     .-.     ", styles.Gold}},
+			{{"  ― (   ) ―  ", styles.Gold}},
+			{{"     `-'     ", styles.Gold}},
+			{{"    /   \\    ", styles.Gold}}},
+		"clear night": {
+			{{"     _.-.  ", styles.Gold}, {"* ", styles.Subtle}},
+			{{"   ,'  /     ", styles.Gold}},
+			{{"  (   (    ", styles.Gold}, {"* ", styles.Subtle}},
+			{{"   `.  \\     ", styles.Gold}},
+			{{"     `-'  ", styles.Gold}, {".  ", styles.Subtle}}},
+		"cloudy": {{},
+			{{"     .--.    ", styles.Subtle}},
+			{{"  .-(    ).  ", styles.Subtle}},
+			{{" (___.__)__) ", styles.Subtle}},
+			{}},
+	}
+)
+
+// Icon returns 5 styled lines of weather art, each iconWidth cells wide.
+// It uses the same condition ID ranges as models.GetWeatherEmoji.
+func Icon(id int, night bool) []string {
+	var name string
+	switch {
+	case id >= 200 && id <= 232:
+		name = "storm"
+	case id >= 300 && id <= 321:
+		name = "drizzle"
+	case id >= 500 && id <= 531:
+		name = "rain"
+	case id >= 600 && id <= 622:
+		name = "snow"
+	case id >= 700 && id <= 781:
+		name = "fog"
+	case id == 800 && night:
+		name = "clear night"
+	case id == 800:
+		name = "clear"
+	default:
+		name = "cloudy"
+	}
+
+	lines := make([]string, len(icons[name]))
+	for i, parts := range icons[name] {
+		var sb strings.Builder
+		for _, p := range parts {
+			sb.WriteString(lipgloss.NewStyle().Foreground(p.color).Render(p.text))
+		}
+		line := sb.String()
+		lines[i] = line + strings.Repeat(" ", max(iconWidth-ansi.StringWidth(line), 0))
+	}
+	return lines
 }
