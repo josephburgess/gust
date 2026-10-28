@@ -185,3 +185,47 @@ func Icon(id int, night bool) []string {
 	}
 	return lines
 }
+
+// Panel boxes body under an upper-case title. w is the full width, border included.
+func Panel(title, body string, w int, focused bool) string {
+	accent, titleColor := styles.HighlightMed, styles.Subtle
+	if focused {
+		accent, titleColor = styles.Iris, styles.Iris
+	}
+	content := body
+	if title != "" {
+		content = lipgloss.NewStyle().Foreground(titleColor).Render(strings.ToUpper(title)) + "\n" + body
+	}
+	return lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(accent).
+		Padding(0, 1).
+		Width(w).
+		Render(content)
+}
+
+func Wordmark() []string {
+	return []string{
+		"█▀▀▀ █  █ █▀▀▀ ▀█▀",
+		"█ ▀█ █  █ ▀▀▀█  █ ",
+		"▀▀▀▀ ▀▀▀▀ ▀▀▀▀  ▀ ",
+	}
+}
+
+// StepRail renders the setup progress, e.g. "✓ city ─── ● preferences ─── ○ sign in".
+func StepRail(steps []string, current int) string {
+	connector := lipgloss.NewStyle().Foreground(styles.HighlightMed).Render(" ─── ")
+	parts := make([]string, len(steps))
+	for i, step := range steps {
+		switch {
+		case i < current:
+			parts[i] = lipgloss.NewStyle().Foreground(styles.Foam).Render("✓") + " " +
+				lipgloss.NewStyle().Foreground(styles.Subtle).Render(step)
+		case i == current:
+			parts[i] = lipgloss.NewStyle().Foreground(styles.Rose).Bold(true).Render("● " + step)
+		default:
+			parts[i] = lipgloss.NewStyle().Foreground(styles.Subtle).Render("○ " + step)
+		}
+	}
+	return strings.Join(parts, connector)
+}

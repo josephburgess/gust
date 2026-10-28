@@ -141,3 +141,52 @@ func TestIcon(t *testing.T) {
 		})
 	}
 }
+
+func TestPanel(t *testing.T) {
+	tests := []struct {
+		name    string
+		focused bool
+	}{
+		{"blurred", false},
+		{"focused", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			lines := strings.Split(ansi.Strip(Panel("wind", "24 km/h", 20, tt.focused)), "\n")
+			assert.Equal(t, []string{
+				"╭──────────────────╮",
+				"│ WIND             │",
+				"│ 24 km/h          │",
+				"╰──────────────────╯",
+			}, lines)
+		})
+	}
+}
+
+func TestWordmark(t *testing.T) {
+	lines := Wordmark()
+	assert.Len(t, lines, 3)
+	for _, line := range lines {
+		assert.Equal(t, ansi.StringWidth(lines[0]), ansi.StringWidth(line))
+	}
+}
+
+func TestStepRail(t *testing.T) {
+	tests := []struct {
+		name    string
+		current int
+		want    string
+	}{
+		{"first step", 0, "● city ─── ○ preferences ─── ○ sign in"},
+		{"middle step", 1, "✓ city ─── ● preferences ─── ○ sign in"},
+		{"all done", 3, "✓ city ─── ✓ preferences ─── ✓ sign in"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := ansi.Strip(StepRail([]string{"city", "preferences", "sign in"}, tt.current))
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
