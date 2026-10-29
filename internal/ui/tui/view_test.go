@@ -306,3 +306,105 @@ func TestAlertsViewWithNoAlerts(t *testing.T) {
 
 	assert.Contains(t, ansi.Strip(updated.View().Content), "no alerts for London, GB")
 }
+
+func TestCityPromptRefetchesTheNewCity(t *testing.T) {
+	var fetched []string
+	fetch := func(city, units string) (*api.WeatherResponse, error) {
+		fetched = append(fetched, city)
+		return &api.WeatherResponse{City: &models.City{Name: "Paris", Country: "FR"}, Weather: fixtureWeather}, nil
+	}
+	m := NewModel("London", "metric", true, TabNow, fetch)
+	updated, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 36})
+	updated, _ = updated.Update(weatherMsg{resp: &api.WeatherResponse{City: fixtureCity, Weather: fixtureWeather}})
+
+	updated, _ = updated.Update(tea.KeyPressMsg{Code: 'c', Text: "c"})
+	assert.True(t, updated.(Model).prompting)
+	for _, r := range "paris" {
+		updated, _ = updated.Update(tea.KeyPressMsg{Code: r, Text: string(r)})
+	}
+	updated, cmd := updated.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+
+	assert.False(t, updated.(Model).prompting)
+	assert.Contains(t, ansi.Strip(updated.View().Content), "fetching paris…")
+	for _, c := range cmd().(tea.BatchMsg) {
+		if msg, ok := c().(weatherMsg); ok {
+			updated, _ = updated.Update(msg)
+		}
+	}
+	assert.Equal(t, []string{"paris"}, fetched)
+	assert.Contains(t, ansi.Strip(updated.View().Content), "gust › Paris, FR")
+}
+
+func TestCityPromptEscCancels(t *testing.T) {
+	m := NewModel("London", "metric", true, TabNow, nil)
+	updated, _ := m.Update(tea.KeyPressMsg{Code: 'c', Text: "c"})
+	updated, cmd := updated.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
+
+	assert.False(t, updated.(Model).prompting)
+	assert.Equal(t, "London", updated.(Model).city)
+	assert.Nil(t, cmd)
+}
+
+func TestUnitsKeyCyclesAndRefetches(t *testing.T) {
+	var fetchedUnits []string
+	fetch := func(city, units string) (*api.WeatherResponse, error) {
+		fetchedUnits = append(fetchedUnits, units)
+		return &api.WeatherResponse{City: fixtureCity, Weather: fixtureWeather}, nil
+	}
+	m := NewModel("London", "metric", true, TabNow, fetch)
+	updated, _ := m.Update(weatherMsg{resp: &api.WeatherResponse{City: fixtureCity, Weather: fixtureWeather}})
+
+	updated, cmd := updated.Update(tea.KeyPressMsg{Code: 'u', Text: "u"})
+	for _, c := range cmd().(tea.BatchMsg) {
+		c()
+	}
+
+	assert.Equal(t, "imperial", updated.(Model).units)
+	assert.Equal(t, []string{"imperial"}, fetchedUnits)
+}
+
+func TestNextUnits(t *testing.T) {
+	assert.Equal(t, "imperial", nextUnits("metric"))
+	assert.Equal(t, "standard", nextUnits("imperial"))
+	assert.Equal(t, "metric", nextUnits("standard"))
+}
+
+func TestRefreshKeepsTheWeatherAndSpinsInTheKeyBar(t *testing.T) {
+	m := NewModel("London", "metric", true, TabNow, nil)
+	updated, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 36})
+	updated, _ = updated.Update(weatherMsg{resp: &api.WeatherResponse{City: fixtureCity, Weather: fixtureWeather}})
+	updated, cmd := updated.Update(tea.KeyPressMsg{Code: 'r', Text: "r"})
+
+	view := ansi.Strip(updated.View().Content)
+
+	assert.NotNil(t, cmd)
+	assert.Contains(t, view, "gusts 41")
+	assert.Contains(t, view, "refreshing")
+}
+
+func TestRefreshErrorShowsInTheKeyBar(t *testing.T) {
+	m := NewModel("London", "metric", true, TabNow, nil)
+	updated, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 36})
+	updated, _ = updated.Update(weatherMsg{resp: &api.WeatherResponse{City: fixtureCity, Weather: fixtureWeather}})
+	updated, _ = updated.Update(tea.KeyPressMsg{Code: 'r', Text: "r"})
+	updated, cmd := updated.Update(weatherMsg{err: errors.New("rate limit exceeded")})
+
+	view := ansi.Strip(updated.View().Content)
+
+	assert.Nil(t, cmd)
+	assert.Contains(t, view, "gusts 41")
+	assert.Contains(t, view, "rate limit exceeded")
+}
+
+func TestHelpKeyTogglesTheHelp(t *testing.T) {
+	m := NewModel("London", "metric", true, TabNow, nil)
+	updated, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 36})
+	updated, _ = updated.Update(weatherMsg{resp: &api.WeatherResponse{City: fixtureCity, Weather: fixtureWeather}})
+	updated, _ = updated.Update(tea.KeyPressMsg{Code: '?', Text: "?"})
+
+	assert.Contains(t, ansi.Strip(updated.View().Content), "previous tab")
+
+	updated, _ = updated.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
+
+	assert.NotContains(t, ansi.Strip(updated.View().Content), "previous tab")
+}

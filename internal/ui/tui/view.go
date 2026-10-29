@@ -51,7 +51,9 @@ func (m Model) bodyHeight() int {
 
 func (m Model) body() string {
 	switch {
-	case m.err != nil:
+	case m.showHelp:
+		return "\n" + helpView()
+	case m.weather == nil && m.err != nil:
 		return "\n" + fg(styles.Love).Render(m.err.Error())
 	case m.weather == nil:
 		return "\n" + m.spinner.View() + " " + fg(styles.Subtle).Render("fetching "+m.cityLabel()+"…")
@@ -108,16 +110,22 @@ func (m Model) tabs() string {
 type keyHint struct{ key, label string }
 
 func (m Model) keyHints() []keyHint {
+	hints := []keyHint{{"1-4", "tabs"}}
 	if m.tab == TabHourly || m.tab == TabDaily {
-		return []keyHint{{"1-4", "tabs"}, {"j/k", "move"}, {"q", "quit"}}
+		hints = append(hints, keyHint{"j/k", "move"})
 	}
-	return []keyHint{{"1-4", "tabs"}, {"q", "quit"}}
+	return append(hints, keyHint{"c", "city"}, keyHint{"u", "units"}, keyHint{"r", "refresh"}, keyHint{"?", "help"}, keyHint{"q", "quit"})
 }
 
 // keyBarInfo is the text on the right of the key bar.
 func (m Model) keyBarInfo() string {
-	if m.weather == nil {
+	switch {
+	case m.weather == nil:
 		return ""
+	case m.loading:
+		return m.spinner.View() + " refreshing"
+	case m.err != nil:
+		return fg(styles.Love).Render(m.err.Error())
 	}
 	switch m.tab {
 	case TabHourly:
@@ -142,6 +150,11 @@ func (m Model) keyBarInfo() string {
 
 func (m Model) keyBar() string {
 	bar := lipgloss.NewStyle().Background(styles.Surface)
+	if m.prompting {
+		m.cityInput.SetWidth(m.width - 2*pad - 4)
+		row := bar.Render(strings.Repeat(" ", pad)) + m.cityInput.View()
+		return row + bar.Render(strings.Repeat(" ", max(m.width-ansi.StringWidth(row), 0)))
+	}
 	hints := make([]string, 0, len(m.keyHints()))
 	for _, h := range m.keyHints() {
 		hints = append(hints, bar.Foreground(styles.Gold).Render(h.key)+bar.Render(" ")+bar.Foreground(styles.Subtle).Render(h.label))

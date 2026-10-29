@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"charm.land/bubbles/v2/spinner"
+	"charm.land/bubbles/v2/textinput"
 	"charm.land/lipgloss/v2"
 	"github.com/josephburgess/gust/internal/api"
 	"github.com/josephburgess/gust/internal/models"
@@ -62,22 +63,37 @@ type Model struct {
 	loading   bool
 	err       error
 
-	spinner spinner.Model
-	now     func() time.Time
+	spinner   spinner.Model
+	cityInput textinput.Model
+	prompting bool
+	showHelp  bool
+	now       func() time.Time
 }
 
 func NewModel(city, units string, showTips bool, tab Tab, fetch FetchFunc) Model {
 	s := spinner.New(spinner.WithSpinner(spinner.Dot))
 	s.Style = lipgloss.NewStyle().Foreground(styles.Gold)
+
+	input := textinput.New()
+	input.Prompt = "› "
+	input.Placeholder = "city, or city,cc"
+	inputStyles := textinput.DefaultDarkStyles()
+	inputStyles.Focused.Prompt = lipgloss.NewStyle().Foreground(styles.Love).Background(styles.Surface)
+	inputStyles.Focused.Text = lipgloss.NewStyle().Foreground(styles.Text).Background(styles.Surface)
+	inputStyles.Focused.Placeholder = lipgloss.NewStyle().Foreground(styles.Subtle).Background(styles.Surface)
+	inputStyles.Cursor.Color = styles.Gold
+	input.SetStyles(inputStyles)
+
 	return Model{
-		tab:      tab,
-		city:     city,
-		units:    units,
-		showTips: showTips,
-		fetch:    fetch,
-		loading:  true,
-		spinner:  s,
-		now:      time.Now,
+		tab:       tab,
+		city:      city,
+		units:     units,
+		showTips:  showTips,
+		fetch:     fetch,
+		loading:   true,
+		spinner:   s,
+		cityInput: input,
+		now:       time.Now,
 	}
 }
 
