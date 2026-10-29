@@ -408,3 +408,45 @@ func TestHelpKeyTogglesTheHelp(t *testing.T) {
 
 	assert.NotContains(t, ansi.Strip(updated.View().Content), "previous tab")
 }
+
+func TestNowViewBreakpoints(t *testing.T) {
+	tests := []struct {
+		name      string
+		width     int
+		height    int
+		want      []string
+		notWanted []string
+	}{
+		{"wide puts four panels in a row", 120, 36, []string{"│ WIND", "│ │ RAIN", "█▀▀▀█", "NEXT 12 HOURS"}, nil},
+		{"under 100 cols the panels go 2x2", 90, 36, []string{"│ │ RAIN", "│ │ SUN"}, []string{"│ │ HUMIDITY"}},
+		{"under 80 cols the big temp goes inline", 70, 36, []string{"9°  Light rain"}, []string{"█▀▀▀█", "(___(__)"}},
+		{"under 24 rows the 12h panel goes", 120, 20, []string{"│ WIND"}, []string{"NEXT 12 HOURS"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := NewModel("London", "metric", true, TabNow, nil)
+			updated, _ := m.Update(tea.WindowSizeMsg{Width: tt.width, Height: tt.height})
+			updated, _ = updated.Update(weatherMsg{resp: &api.WeatherResponse{City: fixtureCity, Weather: fixtureWeather}})
+			view := ansi.Strip(updated.View().Content)
+
+			for _, want := range tt.want {
+				assert.Contains(t, view, want)
+			}
+			for _, notWanted := range tt.notWanted {
+				assert.NotContains(t, view, notWanted)
+			}
+		})
+	}
+}
+
+func TestHourlyViewDropsTheBarsWhenNarrow(t *testing.T) {
+	m := NewModel("London", "metric", true, TabHourly, nil)
+	updated, _ := m.Update(tea.WindowSizeMsg{Width: 70, Height: 36})
+	updated, _ = updated.Update(weatherMsg{resp: &api.WeatherResponse{City: fixtureCity, Weather: fixtureWeather}})
+	view := ansi.Strip(updated.View().Content)
+
+	assert.Contains(t, view, "light rain")
+	assert.NotContains(t, view, "██")
+	assert.NotContains(t, view, "▮")
+}

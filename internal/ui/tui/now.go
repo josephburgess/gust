@@ -14,6 +14,13 @@ import (
 // gustScale is the km/h that fills the wind bar.
 const gustScale = 100
 
+// Breakpoints, in terminal cells.
+const (
+	panelsGridWidth = 100 // under this, the Now panels go 2x2
+	narrowWidth     = 80  // under this, drop the icon, big temp and hourly bars
+	shortHeight     = 24  // under this, the Now tab hides the 12h panel
+)
+
 func (m Model) nowView(width int) string {
 	sections := []string{
 		"",
@@ -21,8 +28,9 @@ func (m Model) nowView(width int) string {
 		"",
 		m.nowPanels(width),
 		m.statLine(),
-		"",
-		m.next12(width),
+	}
+	if m.height >= shortHeight {
+		sections = append(sections, "", m.next12(width))
 	}
 	if tip := m.tipLine(); tip != "" {
 		sections = append(sections, "", tip)
@@ -55,11 +63,12 @@ func (m Model) hero() string {
 	c := m.weather.Current
 	cond := conditionOf(c.Weather)
 
-	icon := strings.Join(Icon(cond.ID, m.isNight()), "\n")
-	temp := fg(styles.Gold).Render(strings.Join(BigTemp(deg(c.Temp)), "\n"))
-
+	desc := lipgloss.NewStyle().Bold(true).Render(capitalise(cond.Description))
+	if m.width < narrowWidth {
+		desc = fg(styles.Gold).Bold(true).Render(fmt.Sprintf("%d°", deg(c.Temp))) + "  " + desc
+	}
 	lines := []string{
-		lipgloss.NewStyle().Bold(true).Render(capitalise(cond.Description)),
+		desc,
 		fg(styles.Subtle).Render("feels like ") + fmt.Sprintf("%d°", deg(c.FeelsLike)),
 		"",
 	}
@@ -69,23 +78,45 @@ func (m Model) hero() string {
 			fg(styles.Subtle).Render("high ")+fg(styles.Gold).Render(fmt.Sprintf("%d°", deg(today.Max)))+
 				fg(styles.Subtle).Render("  low ")+fg(styles.Foam).Render(fmt.Sprintf("%d°", deg(today.Min))))
 	}
+	if m.width < narrowWidth {
+		return strings.Join(lines, "\n")
+	}
 	text := lipgloss.NewStyle().PaddingTop(1).Render(strings.Join(lines, "\n"))
+	icon := strings.Join(Icon(cond.ID, m.isNight()), "\n")
+	temp := fg(styles.Gold).Render(strings.Join(BigTemp(deg(c.Temp)), "\n"))
 
 	return lipgloss.JoinHorizontal(lipgloss.Top, icon, "   ", temp, "    ", text)
 }
 
 func (m Model) nowPanels(width int) string {
-	const gap = 1
-	pw := (width - 3*gap) / 4
-	last := width - 3*gap - 3*pw
-
-	panels := []string{
-		Panel("wind", m.windBody(pw-4), pw, false),
-		Panel("rain", m.rainBody(pw-4), pw, false),
-		Panel("humidity", m.humidityBody(pw-4), pw, false),
-		Panel("sun", m.sunBody(last-4), last, false),
+	perRow := 4
+	if m.width < panelsGridWidth {
+		perRow = 2
 	}
-	return lipgloss.JoinHorizontal(lipgloss.Top, panels[0], " ", panels[1], " ", panels[2], " ", panels[3])
+	pw := (width - (perRow - 1)) / perRow
+	last := width - (perRow - 1) - (perRow-1)*pw
+
+	bodies := []struct {
+		title string
+		body  func(int) string
+	}{{"wind", m.windBody}, {"rain", m.rainBody}, {"humidity", m.humidityBody}, {"sun", m.sunBody}}
+
+	var rows []string
+	for start := 0; start < len(bodies); start += perRow {
+		var row []string
+		for i := start; i < start+perRow; i++ {
+			w := pw
+			if i == start+perRow-1 {
+				w = last
+			}
+			if i > start {
+				row = append(row, " ")
+			}
+			row = append(row, Panel(bodies[i].title, bodies[i].body(w-4), w, false))
+		}
+		rows = append(rows, lipgloss.JoinHorizontal(lipgloss.Top, row...))
+	}
+	return lipgloss.JoinVertical(lipgloss.Left, rows...)
 }
 
 func (m Model) windBody(inner int) string {

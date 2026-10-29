@@ -93,19 +93,28 @@ func (m Model) hourRow(h models.HourData, selected bool, lo, width int) string {
 		mm = fmt.Sprintf("%.1f", h.Rain.OneHour)
 	}
 
+	narrow := m.width < narrowWidth
 	cells := []string{
 		cursorCell(selected),
 		st(lipgloss.NewStyle().Width(7)).Render(m.weather.LocalTime(h.Dt).Format("15:04")),
 		st(lipgloss.NewStyle().Width(5).Bold(true)).Render(fmt.Sprintf("%d°", deg(h.Temp))),
-		st(fg(styles.Gold).Width(tempBarWidth + 2)).Render(tempBar),
+	}
+	if !narrow {
+		cells = append(cells, st(fg(styles.Gold).Width(tempBarWidth+2)).Render(tempBar))
+	}
+	cells = append(cells,
 		st(fg(conditionColor(cond.ID)).Width(conditionCols)).Render(cond.Description),
 		st(fg(styles.Foam).Width(5).Align(lipgloss.Right)).Render(fmt.Sprintf("%d%%", deg(h.Pop*100))),
 		st(lipgloss.NewStyle()).Render(" "),
-		st(fg(styles.Pine).Width(rainBarWidth + 2)).Render(rainBar),
+	)
+	if !narrow {
+		cells = append(cells, st(fg(styles.Pine).Width(rainBarWidth+2)).Render(rainBar))
+	}
+	cells = append(cells,
 		st(fg(styles.Foam).Width(6)).Render(mm),
 		st(lipgloss.NewStyle()).Render(fmt.Sprintf("%d ", deg(windSpeed(h.WindSpeed, m.units)))),
 		st(fg(styles.Iris)).Render(models.GetWindArrow(h.WindDeg)),
-	}
+	)
 
 	row := strings.Join(cells, "")
 	if selected {
