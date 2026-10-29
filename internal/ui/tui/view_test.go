@@ -50,9 +50,30 @@ var (
 			}
 			return hours
 		}(),
-		Daily: []models.DayData{
-			{Dt: fixtureNow.Unix(), Temp: models.TempData{Min: 5, Max: 11}},
-		},
+		Daily: func() []models.DayData {
+			pops := []float64{0.8, 0.6, 0.1, 0.4, 0.3}
+			nights := []float64{6, 4, 1, 5, 7}
+			days := make([]models.DayData, 5)
+			for i := range days {
+				day := fixtureNow.AddDate(0, 0, i)
+				days[i] = models.DayData{
+					Dt:        day.Unix(),
+					Sunrise:   day.Add(-13 * time.Hour).Unix(),
+					Sunset:    day.Add(-4 * time.Hour).Unix(),
+					Summary:   "Rain clearing by the afternoon",
+					Temp:      models.TempData{Min: 5 - float64(i), Max: 11 + float64(i), Morn: 6, Day: 10, Eve: 8, Night: nights[i]},
+					Pop:       pops[i],
+					Rain:      2.1,
+					WindSpeed: 5.6,
+					WindGust:  11.4,
+					WindDeg:   225,
+					UVI:       1.2,
+					Humidity:  80,
+					Weather:   []models.WeatherCondition{{ID: 500, Description: "light rain"}},
+				}
+			}
+			return days
+		}(),
 	}
 
 	fixtureAlert = models.Alert{Event: "Yellow wind warning", SenderName: "Met Office"}
@@ -168,4 +189,120 @@ func TestTabFromView(t *testing.T) {
 			assert.Equal(t, tt.want, TabFromView(tt.view))
 		})
 	}
+}
+
+func TestHourlyView(t *testing.T) {
+	m := NewModel("London", "metric", true, TabHourly, nil)
+	m.now = func() time.Time { return fixtureNow }
+	updated, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 36})
+	updated, _ = updated.Update(weatherMsg{resp: &api.WeatherResponse{City: fixtureCity, Weather: fixtureWeather}})
+
+	view := ansi.Strip(updated.View().Content)
+
+	for _, want := range []string{
+		" ▸ 20:42  9°",
+		"21:42",
+		"── Tue 3 Nov ──",
+		"light rain",
+		"80% ▮▮▮▮▮▮▮▮▯▯",
+		"–",
+		"j/k move",
+		"20:42 · 1 of 24",
+	} {
+		assert.Contains(t, view, want)
+	}
+}
+
+func TestHourlyCursorScrollsOnShortTerminals(t *testing.T) {
+	m := NewModel("London", "metric", true, TabHourly, nil)
+	m.now = func() time.Time { return fixtureNow }
+	updated, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 12})
+	updated, _ = updated.Update(weatherMsg{resp: &api.WeatherResponse{City: fixtureCity, Weather: fixtureWeather}})
+	for range 20 {
+		updated, _ = updated.Update(tea.KeyPressMsg{Code: 'j', Text: "j"})
+	}
+
+	view := ansi.Strip(updated.View().Content)
+
+	assert.Equal(t, 20, updated.(Model).hourCursor)
+	assert.Contains(t, view, " ▸ 16:42")
+	assert.NotContains(t, view, "20:42  9°")
+}
+
+func TestHourlyCursorStopsAtTheEnds(t *testing.T) {
+	m := NewModel("London", "metric", true, TabHourly, nil)
+	updated, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 36})
+	updated, _ = updated.Update(weatherMsg{resp: &api.WeatherResponse{City: fixtureCity, Weather: fixtureWeather}})
+	updated, _ = updated.Update(tea.KeyPressMsg{Code: tea.KeyUp})
+
+	assert.Equal(t, 0, updated.(Model).hourCursor)
+}
+
+func TestDailyView(t *testing.T) {
+	m := NewModel("London", "metric", true, TabDaily, nil)
+	m.now = func() time.Time { return fixtureNow }
+	updated, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 36})
+	updated, _ = updated.Update(weatherMsg{resp: &api.WeatherResponse{City: fixtureCity, Weather: fixtureWeather}})
+
+	view := ansi.Strip(updated.View().Content)
+
+	for _, want := range []string{
+		" ▸ Today",
+		"Tue 3",
+		"5° ",
+		"━",
+		" 11°",
+		"☂ 80%",
+		"20 km/h ↗ SW",
+		"Monday 2 November",
+		"Rain clearing by the afternoon",
+		"morning",
+		"night",
+		"rain 2.1 mm · wind 20 km/h · gusts 41 · uv 1.2 · humidity 80%",
+		"› driest day is wed 4, 10% chance of rain. coldest night is wed 4 at 1°",
+		"week 1°–15°",
+	} {
+		assert.Contains(t, view, want)
+	}
+}
+
+func TestDailyCursorMovesTheDetailBox(t *testing.T) {
+	m := NewModel("London", "metric", true, TabDaily, nil)
+	updated, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 36})
+	updated, _ = updated.Update(weatherMsg{resp: &api.WeatherResponse{City: fixtureCity, Weather: fixtureWeather}})
+	updated, _ = updated.Update(tea.KeyPressMsg{Code: 'j', Text: "j"})
+
+	view := ansi.Strip(updated.View().Content)
+
+	assert.Contains(t, view, " ▸ Tue 3")
+	assert.Contains(t, view, "Tuesday 3 November")
+}
+
+func TestAlertsView(t *testing.T) {
+	withAlert := *fixtureWeather
+	withAlert.Alerts = []models.Alert{{
+		Event:       "Yellow wind warning",
+		SenderName:  "Met Office",
+		Start:       fixtureNow.Unix(),
+		End:         fixtureNow.Add(12 * time.Hour).Unix(),
+		Description: "Strong winds may cause some disruption.",
+	}}
+
+	m := NewModel("London", "metric", true, TabAlerts, nil)
+	updated, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 36})
+	updated, _ = updated.Update(weatherMsg{resp: &api.WeatherResponse{City: fixtureCity, Weather: &withAlert}})
+
+	view := ansi.Strip(updated.View().Content)
+
+	assert.Contains(t, view, "Yellow wind warning")
+	assert.Contains(t, view, "Met Office · Mon 2 Nov 20:42 – Tue 3 Nov 08:42")
+	assert.Contains(t, view, "Strong winds may cause some disruption.")
+}
+
+func TestAlertsViewWithNoAlerts(t *testing.T) {
+	m := NewModel("London", "metric", true, TabAlerts, nil)
+	updated, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 36})
+	updated, _ = updated.Update(weatherMsg{resp: &api.WeatherResponse{City: fixtureCity, Weather: fixtureWeather}})
+
+	assert.Contains(t, ansi.Strip(updated.View().Content), "no alerts for London, GB")
 }

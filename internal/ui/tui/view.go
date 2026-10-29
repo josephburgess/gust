@@ -34,15 +34,19 @@ func (m Model) render() string {
 	rule := fg(styles.Overlay).Render(strings.Repeat("─", m.width))
 	keys := m.keyBar()
 
-	bodyHeight := max(m.height-lipgloss.Height(header)-lipgloss.Height(tabs)-2, 0)
 	body := lipgloss.NewStyle().
 		Padding(0, pad).
 		Width(m.width).
-		Height(bodyHeight).
-		MaxHeight(bodyHeight).
+		Height(m.bodyHeight()).
+		MaxHeight(m.bodyHeight()).
 		Render(m.body())
 
 	return lipgloss.JoinVertical(lipgloss.Left, header, tabs, rule, body, keys)
+}
+
+// bodyHeight is the rows left for the tab after the header, tabs, rule and key bar.
+func (m Model) bodyHeight() int {
+	return max(m.height-4, 0)
 }
 
 func (m Model) body() string {
@@ -52,11 +56,16 @@ func (m Model) body() string {
 	case m.weather == nil:
 		return "\n" + m.spinner.View() + " " + fg(styles.Subtle).Render("fetching "+m.cityLabel()+"…")
 	}
+	width := m.width - 2*pad
 	switch m.tab {
-	case TabNow:
-		return m.nowView(m.width - 2*pad)
+	case TabHourly:
+		return m.hourlyView(width)
+	case TabDaily:
+		return m.dailyView(width)
+	case TabAlerts:
+		return m.alertsView(width)
 	default:
-		return "\n" + fg(styles.Subtle).Render(tabNames[m.tab]+" is on the way")
+		return m.nowView(width)
 	}
 }
 
@@ -99,11 +108,28 @@ func (m Model) tabs() string {
 type keyHint struct{ key, label string }
 
 func (m Model) keyHints() []keyHint {
+	if m.tab == TabHourly || m.tab == TabDaily {
+		return []keyHint{{"1-4", "tabs"}, {"j/k", "move"}, {"q", "quit"}}
+	}
 	return []keyHint{{"1-4", "tabs"}, {"q", "quit"}}
 }
 
 // keyBarInfo is the text on the right of the key bar.
 func (m Model) keyBarInfo() string {
+	if m.weather == nil {
+		return ""
+	}
+	switch m.tab {
+	case TabHourly:
+		if len(m.hours()) > 0 {
+			return fmt.Sprintf("%s · %d of %d", m.weather.LocalTime(m.hours()[m.hourCursor].Dt).Format("15:04"), m.hourCursor+1, len(m.hours()))
+		}
+	case TabDaily:
+		if len(m.days()) > 0 {
+			lo, hi := m.weekRange()
+			return fmt.Sprintf("week %d°–%d°", deg(lo), deg(hi))
+		}
+	}
 	if m.tab == TabNow && !m.fetchedAt.IsZero() {
 		mins := int(m.now().Sub(m.fetchedAt) / time.Minute)
 		if mins < 1 {

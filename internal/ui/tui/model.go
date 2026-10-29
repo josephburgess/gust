@@ -45,13 +45,16 @@ type weatherMsg struct {
 type clockMsg time.Time
 
 type Model struct {
-	tab      Tab
-	width    int
-	height   int
-	city     string
-	units    string
-	showTips bool
-	fetch    FetchFunc
+	tab        Tab
+	hourCursor int
+	dayCursor  int
+	hourScroll int
+	width      int
+	height     int
+	city       string
+	units      string
+	showTips   bool
+	fetch      FetchFunc
 
 	location  *models.City
 	weather   *models.OneCallResponse

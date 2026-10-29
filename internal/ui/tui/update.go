@@ -29,6 +29,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
+		m = m.scrollToCursor()
 	case tea.KeyPressMsg:
 		return m.handleKey(msg)
 	case weatherMsg:
@@ -61,6 +62,24 @@ func (m Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.tab = (m.tab + 1) % Tab(len(tabNames))
 	case "shift+tab":
 		m.tab = (m.tab + Tab(len(tabNames)) - 1) % Tab(len(tabNames))
+	case "j", "down":
+		return m.moveCursor(1), nil
+	case "k", "up":
+		return m.moveCursor(-1), nil
 	}
 	return m, nil
+}
+
+func (m Model) moveCursor(step int) Model {
+	if m.weather == nil {
+		return m
+	}
+	switch m.tab {
+	case TabHourly:
+		m.hourCursor = clamp(m.hourCursor+step, 0, max(len(m.hours())-1, 0))
+		return m.scrollToCursor()
+	case TabDaily:
+		m.dayCursor = clamp(m.dayCursor+step, 0, max(len(m.days())-1, 0))
+	}
+	return m
 }
