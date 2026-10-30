@@ -29,6 +29,9 @@ func (m Model) render() string {
 	if m.width == 0 {
 		return ""
 	}
+	if m.screen == screenSplash {
+		return lipgloss.JoinVertical(lipgloss.Left, m.splashView(), m.keyBar())
+	}
 	header := m.header()
 	tabs := m.tabs()
 	rule := fg(styles.Overlay).Render(strings.Repeat("─", m.width))
@@ -53,10 +56,6 @@ func (m Model) body() string {
 	switch {
 	case m.showHelp:
 		return "\n" + helpView()
-	case m.weather == nil && m.err != nil:
-		return "\n" + fg(styles.Love).Render(m.err.Error())
-	case m.weather == nil:
-		return "\n" + m.spinner.View() + " " + fg(styles.Subtle).Render("fetching "+m.cityLabel()+"…")
 	}
 	width := m.width - 2*pad
 	switch m.tab {
@@ -110,6 +109,9 @@ func (m Model) tabs() string {
 type keyHint struct{ key, label string }
 
 func (m Model) keyHints() []keyHint {
+	if m.screen == screenSplash {
+		return m.splashKeyHints()
+	}
 	hints := []keyHint{{"1-4", "tabs"}}
 	if m.tab == TabHourly || m.tab == TabDaily {
 		hints = append(hints, keyHint{"j/k", "move"})
@@ -120,8 +122,8 @@ func (m Model) keyHints() []keyHint {
 // keyBarInfo is the text on the right of the key bar.
 func (m Model) keyBarInfo() string {
 	switch {
-	case m.weather == nil:
-		return ""
+	case m.screen == screenSplash:
+		return "via " + m.via
 	case m.loading:
 		return m.spinner.View() + " refreshing"
 	case m.err != nil:

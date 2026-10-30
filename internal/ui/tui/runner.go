@@ -15,6 +15,9 @@ func Run(city string, cfg *config.Config, auth *config.AuthConfig, tab Tab) erro
 	}
 
 	model := NewModel(city, cfg.Units, cfg.ShowTips, tab, fetch)
+	if auth.GithubUser == "OpenWeather API User" {
+		model.via = "your key"
+	}
 	if _, err := tea.NewProgram(model).Run(); err != nil {
 		return fmt.Errorf("error running dashboard: %w", err)
 	}

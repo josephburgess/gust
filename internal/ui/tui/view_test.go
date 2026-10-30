@@ -83,6 +83,7 @@ func TestNowView(t *testing.T) {
 	m := NewModel("London", "metric", true, TabNow, nil)
 	m.now = func() time.Time { return fixtureNow }
 	updated, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 36})
+	updated, _ = updated.Update(splashMinMsg{})
 	updated, _ = updated.Update(weatherMsg{resp: &api.WeatherResponse{City: fixtureCity, Weather: fixtureWeather}})
 
 	view := ansi.Strip(updated.View().Content)
@@ -116,6 +117,7 @@ func TestNowViewHidesTipWhenTipsAreOff(t *testing.T) {
 	m := NewModel("London", "metric", false, TabNow, nil)
 	m.now = func() time.Time { return fixtureNow }
 	updated, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 36})
+	updated, _ = updated.Update(splashMinMsg{})
 	updated, _ = updated.Update(weatherMsg{resp: &api.WeatherResponse{City: fixtureCity, Weather: fixtureWeather}})
 
 	assert.NotContains(t, ansi.Strip(updated.View().Content), "umbrella")
@@ -128,25 +130,80 @@ func TestAlertsBadge(t *testing.T) {
 	m := NewModel("London", "metric", true, TabNow, nil)
 	m.now = func() time.Time { return fixtureNow }
 	updated, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 36})
+	updated, _ = updated.Update(splashMinMsg{})
 	updated, _ = updated.Update(weatherMsg{resp: &api.WeatherResponse{City: fixtureCity, Weather: &withAlert}})
 
 	assert.Contains(t, ansi.Strip(updated.View().Content), "4 Alerts ●1")
 }
 
-func TestLoadingView(t *testing.T) {
+func TestSplashShowsWhileLoading(t *testing.T) {
 	m := NewModel("London", "metric", true, TabNow, nil)
 	updated, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 36})
+	updated, _ = updated.Update(splashMinMsg{})
 
 	assert.Contains(t, ansi.Strip(updated.View().Content), "fetching London…")
 }
 
-func TestFetchErrorShowsInline(t *testing.T) {
+func TestSplashShowsFetchErrors(t *testing.T) {
 	m := NewModel("London", "metric", true, TabNow, nil)
 	updated, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 36})
+	updated, _ = updated.Update(splashMinMsg{})
 	updated, cmd := updated.Update(weatherMsg{err: errors.New("rate limit exceeded")})
 
+	view := ansi.Strip(updated.View().Content)
+
 	assert.Nil(t, cmd)
-	assert.Contains(t, ansi.Strip(updated.View().Content), "rate limit exceeded")
+	assert.Equal(t, screenSplash, updated.(Model).screen)
+	assert.Contains(t, view, "rate limit exceeded")
+	assert.Contains(t, view, "r retry · c city · q quit")
+}
+
+func TestSplashRetryFetchesAgain(t *testing.T) {
+	m := NewModel("London", "metric", true, TabNow, nil)
+	updated, _ := m.Update(weatherMsg{err: errors.New("rate limit exceeded")})
+	updated, cmd := updated.Update(tea.KeyPressMsg{Code: 'r', Text: "r"})
+
+	assert.NotNil(t, cmd)
+	assert.True(t, updated.(Model).loading)
+	assert.Nil(t, updated.(Model).err)
+}
+
+func TestSplashWaitsForTheWeatherAndTheMinimumTime(t *testing.T) {
+	m := NewModel("London", "metric", true, TabNow, nil)
+	updated, _ := m.Update(weatherMsg{resp: &api.WeatherResponse{City: fixtureCity, Weather: fixtureWeather}})
+
+	assert.Equal(t, screenSplash, updated.(Model).screen)
+
+	updated, _ = updated.Update(splashMinMsg{})
+
+	assert.Equal(t, screenMain, updated.(Model).screen)
+}
+
+func TestSplashIgnoresAnOldTimer(t *testing.T) {
+	m := NewModel("London", "metric", true, TabNow, nil)
+	m.splashSeq = 2
+	updated, _ := m.Update(weatherMsg{resp: &api.WeatherResponse{City: fixtureCity, Weather: fixtureWeather}})
+	updated, _ = updated.Update(splashMinMsg{seq: 1})
+
+	assert.Equal(t, screenSplash, updated.(Model).screen)
+}
+
+func TestSplashView(t *testing.T) {
+	m := NewModel("London", "metric", true, TabNow, nil)
+	m.via = "your key"
+	updated, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 36})
+	view := ansi.Strip(updated.View().Content)
+
+	assert.Contains(t, view, "█▀▀▀ █  █ █▀▀▀ ▀█▀")
+	assert.Contains(t, view, "simple terminal weather")
+	assert.Contains(t, view, "fetching London…")
+	assert.Contains(t, view, "q cancel")
+	assert.Contains(t, view, "via your key")
+}
+
+func TestRotate(t *testing.T) {
+	assert.Equal(t, "bca", rotate("abc", 1))
+	assert.Equal(t, "cab", rotate("abc", 5))
 }
 
 func TestTabKeys(t *testing.T) {
@@ -165,6 +222,7 @@ func TestTabKeys(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			m := NewModel("London", "metric", true, tt.start, nil)
+			m.screen = screenMain
 			updated, _ := m.Update(tt.key)
 			assert.Equal(t, tt.want, updated.(Model).tab)
 		})
@@ -195,6 +253,7 @@ func TestHourlyView(t *testing.T) {
 	m := NewModel("London", "metric", true, TabHourly, nil)
 	m.now = func() time.Time { return fixtureNow }
 	updated, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 36})
+	updated, _ = updated.Update(splashMinMsg{})
 	updated, _ = updated.Update(weatherMsg{resp: &api.WeatherResponse{City: fixtureCity, Weather: fixtureWeather}})
 
 	view := ansi.Strip(updated.View().Content)
@@ -217,6 +276,7 @@ func TestHourlyCursorScrollsOnShortTerminals(t *testing.T) {
 	m := NewModel("London", "metric", true, TabHourly, nil)
 	m.now = func() time.Time { return fixtureNow }
 	updated, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 12})
+	updated, _ = updated.Update(splashMinMsg{})
 	updated, _ = updated.Update(weatherMsg{resp: &api.WeatherResponse{City: fixtureCity, Weather: fixtureWeather}})
 	for range 20 {
 		updated, _ = updated.Update(tea.KeyPressMsg{Code: 'j', Text: "j"})
@@ -232,6 +292,7 @@ func TestHourlyCursorScrollsOnShortTerminals(t *testing.T) {
 func TestHourlyCursorStopsAtTheEnds(t *testing.T) {
 	m := NewModel("London", "metric", true, TabHourly, nil)
 	updated, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 36})
+	updated, _ = updated.Update(splashMinMsg{})
 	updated, _ = updated.Update(weatherMsg{resp: &api.WeatherResponse{City: fixtureCity, Weather: fixtureWeather}})
 	updated, _ = updated.Update(tea.KeyPressMsg{Code: tea.KeyUp})
 
@@ -242,6 +303,7 @@ func TestDailyView(t *testing.T) {
 	m := NewModel("London", "metric", true, TabDaily, nil)
 	m.now = func() time.Time { return fixtureNow }
 	updated, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 36})
+	updated, _ = updated.Update(splashMinMsg{})
 	updated, _ = updated.Update(weatherMsg{resp: &api.WeatherResponse{City: fixtureCity, Weather: fixtureWeather}})
 
 	view := ansi.Strip(updated.View().Content)
@@ -269,6 +331,7 @@ func TestDailyView(t *testing.T) {
 func TestDailyCursorMovesTheDetailBox(t *testing.T) {
 	m := NewModel("London", "metric", true, TabDaily, nil)
 	updated, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 36})
+	updated, _ = updated.Update(splashMinMsg{})
 	updated, _ = updated.Update(weatherMsg{resp: &api.WeatherResponse{City: fixtureCity, Weather: fixtureWeather}})
 	updated, _ = updated.Update(tea.KeyPressMsg{Code: 'j', Text: "j"})
 
@@ -290,6 +353,7 @@ func TestAlertsView(t *testing.T) {
 
 	m := NewModel("London", "metric", true, TabAlerts, nil)
 	updated, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 36})
+	updated, _ = updated.Update(splashMinMsg{})
 	updated, _ = updated.Update(weatherMsg{resp: &api.WeatherResponse{City: fixtureCity, Weather: &withAlert}})
 
 	view := ansi.Strip(updated.View().Content)
@@ -302,6 +366,7 @@ func TestAlertsView(t *testing.T) {
 func TestAlertsViewWithNoAlerts(t *testing.T) {
 	m := NewModel("London", "metric", true, TabAlerts, nil)
 	updated, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 36})
+	updated, _ = updated.Update(splashMinMsg{})
 	updated, _ = updated.Update(weatherMsg{resp: &api.WeatherResponse{City: fixtureCity, Weather: fixtureWeather}})
 
 	assert.Contains(t, ansi.Strip(updated.View().Content), "no alerts for London, GB")
@@ -315,6 +380,7 @@ func TestCityPromptRefetchesTheNewCity(t *testing.T) {
 	}
 	m := NewModel("London", "metric", true, TabNow, fetch)
 	updated, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 36})
+	updated, _ = updated.Update(splashMinMsg{})
 	updated, _ = updated.Update(weatherMsg{resp: &api.WeatherResponse{City: fixtureCity, Weather: fixtureWeather}})
 
 	updated, _ = updated.Update(tea.KeyPressMsg{Code: 'c', Text: "c"})
@@ -331,12 +397,14 @@ func TestCityPromptRefetchesTheNewCity(t *testing.T) {
 			updated, _ = updated.Update(msg)
 		}
 	}
+	updated, _ = updated.Update(splashMinMsg{seq: updated.(Model).splashSeq})
 	assert.Equal(t, []string{"paris"}, fetched)
 	assert.Contains(t, ansi.Strip(updated.View().Content), "gust › Paris, FR")
 }
 
 func TestCityPromptEscCancels(t *testing.T) {
 	m := NewModel("London", "metric", true, TabNow, nil)
+	m.screen = screenMain
 	updated, _ := m.Update(tea.KeyPressMsg{Code: 'c', Text: "c"})
 	updated, cmd := updated.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
 
@@ -352,7 +420,8 @@ func TestUnitsKeyCyclesAndRefetches(t *testing.T) {
 		return &api.WeatherResponse{City: fixtureCity, Weather: fixtureWeather}, nil
 	}
 	m := NewModel("London", "metric", true, TabNow, fetch)
-	updated, _ := m.Update(weatherMsg{resp: &api.WeatherResponse{City: fixtureCity, Weather: fixtureWeather}})
+	updated, _ := m.Update(splashMinMsg{})
+	updated, _ = updated.Update(weatherMsg{resp: &api.WeatherResponse{City: fixtureCity, Weather: fixtureWeather}})
 
 	updated, cmd := updated.Update(tea.KeyPressMsg{Code: 'u', Text: "u"})
 	for _, c := range cmd().(tea.BatchMsg) {
@@ -372,6 +441,7 @@ func TestNextUnits(t *testing.T) {
 func TestRefreshKeepsTheWeatherAndSpinsInTheKeyBar(t *testing.T) {
 	m := NewModel("London", "metric", true, TabNow, nil)
 	updated, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 36})
+	updated, _ = updated.Update(splashMinMsg{})
 	updated, _ = updated.Update(weatherMsg{resp: &api.WeatherResponse{City: fixtureCity, Weather: fixtureWeather}})
 	updated, cmd := updated.Update(tea.KeyPressMsg{Code: 'r', Text: "r"})
 
@@ -385,6 +455,7 @@ func TestRefreshKeepsTheWeatherAndSpinsInTheKeyBar(t *testing.T) {
 func TestRefreshErrorShowsInTheKeyBar(t *testing.T) {
 	m := NewModel("London", "metric", true, TabNow, nil)
 	updated, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 36})
+	updated, _ = updated.Update(splashMinMsg{})
 	updated, _ = updated.Update(weatherMsg{resp: &api.WeatherResponse{City: fixtureCity, Weather: fixtureWeather}})
 	updated, _ = updated.Update(tea.KeyPressMsg{Code: 'r', Text: "r"})
 	updated, cmd := updated.Update(weatherMsg{err: errors.New("rate limit exceeded")})
@@ -399,6 +470,7 @@ func TestRefreshErrorShowsInTheKeyBar(t *testing.T) {
 func TestHelpKeyTogglesTheHelp(t *testing.T) {
 	m := NewModel("London", "metric", true, TabNow, nil)
 	updated, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 36})
+	updated, _ = updated.Update(splashMinMsg{})
 	updated, _ = updated.Update(weatherMsg{resp: &api.WeatherResponse{City: fixtureCity, Weather: fixtureWeather}})
 	updated, _ = updated.Update(tea.KeyPressMsg{Code: '?', Text: "?"})
 
@@ -427,6 +499,7 @@ func TestNowViewBreakpoints(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			m := NewModel("London", "metric", true, TabNow, nil)
 			updated, _ := m.Update(tea.WindowSizeMsg{Width: tt.width, Height: tt.height})
+			updated, _ = updated.Update(splashMinMsg{})
 			updated, _ = updated.Update(weatherMsg{resp: &api.WeatherResponse{City: fixtureCity, Weather: fixtureWeather}})
 			view := ansi.Strip(updated.View().Content)
 
@@ -443,6 +516,7 @@ func TestNowViewBreakpoints(t *testing.T) {
 func TestHourlyViewDropsTheBarsWhenNarrow(t *testing.T) {
 	m := NewModel("London", "metric", true, TabHourly, nil)
 	updated, _ := m.Update(tea.WindowSizeMsg{Width: 70, Height: 36})
+	updated, _ = updated.Update(splashMinMsg{})
 	updated, _ = updated.Update(weatherMsg{resp: &api.WeatherResponse{City: fixtureCity, Weather: fixtureWeather}})
 	view := ansi.Strip(updated.View().Content)
 

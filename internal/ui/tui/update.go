@@ -12,7 +12,7 @@ import (
 const clockInterval = 30 * time.Second
 
 func (m Model) Init() tea.Cmd {
-	return tea.Batch(m.spinner.Tick, m.fetchCmd(), clockTick())
+	return tea.Batch(m.spinner.Tick, m.fetchCmd(), clockTick(), streakTick(), splashMinTick(m.splashSeq))
 }
 
 func (m Model) fetchCmd() tea.Cmd {
@@ -27,18 +27,23 @@ func clockTick() tea.Cmd {
 	return tea.Tick(clockInterval, func(t time.Time) tea.Msg { return clockMsg(t) })
 }
 
-// refetch starts a new fetch. clear drops the old weather, for a new city or new units.
+// refetch starts a new fetch. clear drops the old weather and shows the splash,
+// for a new city or new units.
 func (m Model) refetch(clear bool) (Model, tea.Cmd) {
+	cmds := []tea.Cmd{m.fetchCmd()}
 	if clear {
 		m.weather, m.location = nil, nil
 		m.hourCursor, m.dayCursor, m.hourScroll = 0, 0, 0
+		var splash tea.Cmd
+		m, splash = m.showSplash()
+		cmds = append(cmds, splash)
 	}
 	m.err = nil
-	if m.loading {
-		return m, m.fetchCmd()
+	if !m.loading {
+		m.loading = true
+		cmds = append(cmds, m.spinner.Tick)
 	}
-	m.loading = true
-	return m, tea.Batch(m.spinner.Tick, m.fetchCmd())
+	return m, tea.Batch(cmds...)
 }
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -58,6 +63,17 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.location = msg.resp.City
 			m.weather = msg.resp.Weather
 			m.fetchedAt = m.now()
+		}
+		return m.leaveSplash(), nil
+	case splashMinMsg:
+		if msg.seq == m.splashSeq {
+			m.splashMinDone = true
+		}
+		return m.leaveSplash(), nil
+	case streakMsg:
+		if m.screen == screenSplash {
+			m.streakFrame++
+			return m, streakTick()
 		}
 	case clockMsg:
 		return m, clockTick()
@@ -100,7 +116,24 @@ func (m Model) handlePrompt(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
+func (m Model) handleSplashKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	switch {
+	case key.Matches(msg, keys.Quit):
+		return m, tea.Quit
+	case m.err != nil && key.Matches(msg, keys.Refresh):
+		return m.refetch(true)
+	case m.err != nil && key.Matches(msg, keys.City):
+		m.prompting = true
+		m.cityInput.Reset()
+		return m, m.cityInput.Focus()
+	}
+	return m, nil
+}
+
 func (m Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	if m.screen == screenSplash {
+		return m.handleSplashKey(msg)
+	}
 	if m.showHelp && msg.String() == "esc" {
 		m.showHelp = false
 		return m, nil

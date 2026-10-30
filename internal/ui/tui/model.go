@@ -46,6 +46,13 @@ type weatherMsg struct {
 type clockMsg time.Time
 
 type Model struct {
+	screen        screen
+	splashSeq     int
+	splashMinDone bool
+	streakFrame   int
+	// via names the weather source in the splash key bar
+	via string
+
 	tab        Tab
 	hourCursor int
 	dayCursor  int
@@ -85,6 +92,8 @@ func NewModel(city, units string, showTips bool, tab Tab, fetch FetchFunc) Model
 	input.SetStyles(inputStyles)
 
 	return Model{
+		screen:    screenSplash,
+		via:       "breeze",
 		tab:       tab,
 		city:      city,
 		units:     units,
