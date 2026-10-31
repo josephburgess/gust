@@ -8,6 +8,7 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/josephburgess/gust/internal/models"
 	"github.com/josephburgess/gust/internal/ui/styles"
+	"github.com/josephburgess/gust/internal/ui/widgets"
 )
 
 const (
@@ -85,7 +86,7 @@ func (m Model) hourRow(h models.HourData, selected bool, lo, width int) string {
 	st := rowStyle(selected)
 	cond := conditionOf(h.Weather)
 
-	tempBar := HBlocks(min((deg(h.Temp)-lo+1)*2, tempBarWidth))
+	tempBar := widgets.HBlocks(min((deg(h.Temp)-lo+1)*2, tempBarWidth))
 	filled := deg(h.Pop * rainBarWidth)
 	rainBar := strings.Repeat("▮", filled) + strings.Repeat("▯", rainBarWidth-filled)
 	mm := "–"

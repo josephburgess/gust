@@ -9,6 +9,7 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/josephburgess/gust/internal/models"
 	"github.com/josephburgess/gust/internal/ui/styles"
+	"github.com/josephburgess/gust/internal/ui/widgets"
 )
 
 // gustScale is the km/h that fills the wind bar.
@@ -82,8 +83,8 @@ func (m Model) hero() string {
 		return strings.Join(lines, "\n")
 	}
 	text := lipgloss.NewStyle().PaddingTop(1).Render(strings.Join(lines, "\n"))
-	icon := strings.Join(Icon(cond.ID, m.isNight()), "\n")
-	temp := fg(styles.Gold).Render(strings.Join(BigTemp(deg(c.Temp)), "\n"))
+	icon := strings.Join(widgets.Icon(cond.ID, m.isNight()), "\n")
+	temp := fg(styles.Gold).Render(strings.Join(widgets.BigTemp(deg(c.Temp)), "\n"))
 
 	return lipgloss.JoinHorizontal(lipgloss.Top, icon, "   ", temp, "    ", text)
 }
@@ -112,7 +113,7 @@ func (m Model) nowPanels(width int) string {
 			if i > start {
 				row = append(row, " ")
 			}
-			row = append(row, Panel(bodies[i].title, bodies[i].body(w-4), w, false))
+			row = append(row, widgets.Panel(bodies[i].title, bodies[i].body(w-4), w, false))
 		}
 		rows = append(rows, lipgloss.JoinHorizontal(lipgloss.Top, row...))
 	}
@@ -124,7 +125,7 @@ func (m Model) windBody(inner int) string {
 	speed := fmt.Sprintf("%d %s ", deg(windSpeed(c.WindSpeed, m.units)), windUnit(m.units)) +
 		fg(styles.Iris).Render(models.GetWindArrow(c.WindDeg)) + " " + models.GetWindDirection(c.WindDeg)
 	gusts := fg(styles.Love).Render(fmt.Sprintf("gusts %d", deg(windSpeed(c.WindGust, m.units))))
-	bar := fg(styles.Love).Render(Bar(kmh(c.WindGust, m.units), gustScale, inner))
+	bar := fg(styles.Love).Render(widgets.Bar(kmh(c.WindGust, m.units), gustScale, inner))
 	return strings.Join([]string{speed, gusts, bar}, "\n")
 }
 
@@ -142,14 +143,14 @@ func (m Model) rainBody(inner int) string {
 		pop = m.weather.Hourly[1].Pop
 	}
 	chance := fg(styles.Foam).Render(fmt.Sprintf("%d%%", deg(pop*100))) + fg(styles.Subtle).Render(" next hour")
-	bar := fg(styles.Foam).Render(Bar(pop, 1, inner))
+	bar := fg(styles.Foam).Render(widgets.Bar(pop, 1, inner))
 	return strings.Join([]string{amount, chance, bar}, "\n")
 }
 
 func (m Model) humidityBody(inner int) string {
 	c := m.weather.Current
 	dew := fg(styles.Subtle).Render("dew point ") + fmt.Sprintf("%d°", deg(c.DewPoint))
-	bar := fg(styles.Pine).Render(Bar(float64(c.Humidity), 100, inner))
+	bar := fg(styles.Pine).Render(widgets.Bar(float64(c.Humidity), 100, inner))
 	return strings.Join([]string{fmt.Sprintf("%d%%", c.Humidity), dew, bar}, "\n")
 }
 
@@ -218,7 +219,7 @@ func (m Model) next12(width int) string {
 	for i, h := range hours {
 		temps[i] = h.Temp
 	}
-	spark := []rune(Spark(temps))
+	spark := []rune(widgets.Spark(temps))
 
 	cols := make([]string, len(hours))
 	for i, h := range hours {
@@ -234,7 +235,7 @@ func (m Model) next12(width int) string {
 		}, "\n")
 		cols[i] = lipgloss.NewStyle().Width(colWidth).Align(lipgloss.Center).Render(cell)
 	}
-	return Panel("next 12 hours", lipgloss.JoinHorizontal(lipgloss.Top, cols...), width, false)
+	return widgets.Panel("next 12 hours", lipgloss.JoinHorizontal(lipgloss.Top, cols...), width, false)
 }
 
 // tipLine is the weather tip without its emoji, or "" when tips are off.

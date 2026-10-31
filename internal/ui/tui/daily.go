@@ -7,6 +7,7 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/josephburgess/gust/internal/models"
 	"github.com/josephburgess/gust/internal/ui/styles"
+	"github.com/josephburgess/gust/internal/ui/widgets"
 )
 
 const (
@@ -48,7 +49,7 @@ func (m Model) dailyView(width int) string {
 		selected := i == m.dayCursor
 		st := rowStyle(selected)
 		cond := conditionOf(d.Weather)
-		pre, fill, post := RangeBar(d.Temp.Min, d.Temp.Max, weekMin, weekMax, rangeWidth)
+		pre, fill, post := widgets.RangeBar(d.Temp.Min, d.Temp.Max, weekMin, weekMax, rangeWidth)
 
 		row := strings.Join([]string{
 			cursorCell(selected),
@@ -108,7 +109,7 @@ func (m Model) dayDetail(d models.DayData, width int) string {
 		body = append(body, fg(styles.Subtle).Render(d.Summary))
 	}
 	body = append(body, "", temps, "", stats)
-	return Panel("", strings.Join(body, "\n"), width, true)
+	return widgets.Panel("", strings.Join(body, "\n"), width, true)
 }
 
 // coldNight is the night low worth a mention, per unit system.

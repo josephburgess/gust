@@ -1,4 +1,4 @@
-package tui
+package widgets
 
 import (
 	"fmt"
@@ -106,7 +106,8 @@ type iconPart struct {
 	color color.Color
 }
 
-const iconWidth = 13
+// IconWidth is the cell width of every Icon line.
+const IconWidth = 13
 
 var (
 	cloudTop = []iconPart{{"     .-.     ", styles.Subtle}}
@@ -151,7 +152,7 @@ var (
 	}
 )
 
-// Icon returns 5 styled lines of weather art, each iconWidth cells wide.
+// Icon returns 5 styled lines of weather art, each IconWidth cells wide.
 // It uses the same condition ID ranges as models.GetWeatherEmoji.
 func Icon(id int, night bool) []string {
 	var name string
@@ -181,7 +182,7 @@ func Icon(id int, night bool) []string {
 			sb.WriteString(lipgloss.NewStyle().Foreground(p.color).Render(p.text))
 		}
 		line := sb.String()
-		lines[i] = line + strings.Repeat(" ", max(iconWidth-ansi.StringWidth(line), 0))
+		lines[i] = line + strings.Repeat(" ", max(IconWidth-ansi.StringWidth(line), 0))
 	}
 	return lines
 }

@@ -7,6 +7,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/josephburgess/gust/internal/ui/styles"
+	"github.com/josephburgess/gust/internal/ui/widgets"
 )
 
 type screen int
@@ -75,7 +76,7 @@ func (m Model) splashView() string {
 
 	content := lipgloss.JoinVertical(lipgloss.Center,
 		fg(styles.Foam).Render(rotate(streakTop, m.streakFrame)),
-		fg(styles.Rose).Bold(true).Render(strings.Join(Wordmark(), "\n")),
+		fg(styles.Rose).Bold(true).Render(strings.Join(widgets.Wordmark(), "\n")),
 		fg(styles.Subtle).Render(rotate(streakLow, 2*m.streakFrame)),
 		"",
 		fg(styles.Subtle).Italic(true).Render("simple terminal weather"),

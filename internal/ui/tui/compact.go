@@ -6,6 +6,7 @@ import (
 
 	"github.com/josephburgess/gust/internal/models"
 	"github.com/josephburgess/gust/internal/ui/styles"
+	"github.com/josephburgess/gust/internal/ui/widgets"
 )
 
 // rainLikely is the pop at which "rain back" is worth a mention.
@@ -54,7 +55,7 @@ func Compact(city *models.City, w *models.OneCallResponse, units string) string 
 			temps[i] = h.Temp
 		}
 		lo, hi := minMax(temps)
-		second := fg(styles.Gold).Render(Spark(temps)) + subtle.Render(fmt.Sprintf("  next 24h %d°–%d°", deg(lo), deg(hi)))
+		second := fg(styles.Gold).Render(widgets.Spark(temps)) + subtle.Render(fmt.Sprintf("  next 24h %d°–%d°", deg(lo), deg(hi)))
 		if !raining(c.Rain) {
 			for _, h := range hours[1:] {
 				if h.Pop > rainLikely {

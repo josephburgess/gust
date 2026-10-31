@@ -39,3 +39,16 @@ func kmh(speed float64, units string) float64 {
 func deg(t float64) int {
 	return int(math.Round(t))
 }
+
+func minMax(vals []float64) (float64, float64) {
+	lo, hi := vals[0], vals[0]
+	for _, v := range vals[1:] {
+		lo = math.Min(lo, v)
+		hi = math.Max(hi, v)
+	}
+	return lo, hi
+}
+
+func clamp(v, lo, hi int) int {
+	return min(max(v, lo), hi)
+}

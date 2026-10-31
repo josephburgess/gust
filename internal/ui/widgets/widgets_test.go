@@ -1,4 +1,4 @@
-package tui
+package widgets
 
 import (
 	"strings"
@@ -135,7 +135,7 @@ func TestIcon(t *testing.T) {
 			lines := Icon(tt.id, tt.night)
 			assert.Len(t, lines, 5)
 			for _, line := range lines {
-				assert.Equal(t, iconWidth, ansi.StringWidth(line))
+				assert.Equal(t, IconWidth, ansi.StringWidth(line))
 			}
 			assert.Contains(t, ansi.Strip(strings.Join(lines, "\n")), tt.want)
 		})
