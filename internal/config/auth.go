@@ -74,9 +74,11 @@ func Authenticate(apiUrl string) (*AuthConfig, error) {
 
 // simple server to handle the callback post auth
 func startCallbackServer(port int, apiUrl string, authDone chan<- *AuthConfig, errorChan chan<- error) *http.Server {
-	server := &http.Server{Addr: fmt.Sprintf(":%d", port)}
+	// a private mux, so a second sign in from the same process does not panic
+	mux := http.NewServeMux()
+	server := &http.Server{Addr: fmt.Sprintf(":%d", port), Handler: mux}
 
-	http.HandleFunc("/callback", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/callback", func(w http.ResponseWriter, r *http.Request) {
 		code := r.URL.Query().Get("code")
 		if code == "" {
 			errorChan <- fmt.Errorf("no auth code received")
