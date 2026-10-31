@@ -2,6 +2,7 @@ package setup
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"charm.land/bubbles/v2/spinner"
@@ -29,30 +30,170 @@ func (m Model) searchCities() tea.Cmd {
 	}
 }
 
+// updates the model based on messages
+func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.KeyPressMsg:
+		if msg.String() == "ctrl+c" {
+			m.Quitting = true
+			return m, tea.Quit
+		}
+		switch m.State {
+		case StateCity, StateCitySearch, StateCitySelect:
+			return m.handleCityKey(msg)
+		case StatePreferences:
+			return m.handlePreferencesKey(msg)
+		case StateApiKeyOption:
+			return m.handleSignInKey(msg)
+		case StateApiKeyInput:
+			return m.handleApiKeyInput(msg)
+		case StateComplete:
+			return m.handleCompleteKey(msg)
+		}
+	case tea.WindowSizeMsg:
+		m.Width = msg.Width
+		m.Height = msg.Height
+	case SetupCompleteMsg:
+		m.State = StateComplete
+	case CitiesSearchResult:
+		if m.State != StateCitySearch {
+			return m, nil
+		}
+		m.CityCursor = 0
+		m.CityOptions = msg.cities
+		switch {
+		case msg.err != nil:
+			m.SearchErr = msg.err.Error()
+			m.State = StateCity
+		case len(msg.cities) == 0:
+			m.SearchErr = fmt.Sprintf("no matches for %q", m.CitySearchQuery)
+			m.State = StateCity
+		default:
+			m.State = StateCitySelect
+		}
+	case spinner.TickMsg:
+		var cmd tea.Cmd
+		m.Spinner, cmd = m.Spinner.Update(msg)
+		return m, cmd
+	default:
+		var cmd tea.Cmd
+		switch m.State {
+		case StateCity, StateCitySearch, StateCitySelect:
+			m.CityInput, cmd = m.CityInput.Update(msg)
+		case StateApiKeyInput:
+			m.ApiKeyInput, cmd = m.ApiKeyInput.Update(msg)
+		}
+		return m, cmd
+	}
+	return m, nil
+}
+
+// handleCityKey runs the city step. The input keeps focus, so typing again
+// and pressing enter searches again.
+func (m Model) handleCityKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "enter":
+		query := strings.TrimSpace(m.CityInput.Value())
+		if m.State == StateCitySelect && query == m.CitySearchQuery {
+			m.Config.DefaultCity = m.CityOptions[m.CityCursor].Name
+			m.State = StatePreferences
+			return m, nil
+		}
+		if query == "" || m.State == StateCitySearch {
+			return m, nil
+		}
+		m.CitySearchQuery = query
+		m.SearchErr = ""
+		m.State = StateCitySearch
+		return m, m.searchCities()
+	case "up":
+		if m.State == StateCitySelect {
+			m.CityCursor = max(m.CityCursor-1, 0)
+		}
+		return m, nil
+	case "down":
+		if m.State == StateCitySelect {
+			m.CityCursor = min(m.CityCursor+1, len(m.CityOptions)-1)
+		}
+		return m, nil
+	}
+	var cmd tea.Cmd
+	m.CityInput, cmd = m.CityInput.Update(msg)
+	return m, cmd
+}
+
+func (m Model) handlePreferencesKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	cursors := []*int{&m.UnitCursor, &m.ViewCursor, &m.TipCursor}
+	sizes := []int{len(unitOptions), len(viewOptions), len(tipOptions)}
+	cursor, size := cursors[m.PrefGroup], sizes[m.PrefGroup]
+
+	switch msg.String() {
+	case "tab":
+		m.PrefGroup = (m.PrefGroup + 1) % 3
+	case "shift+tab":
+		m.PrefGroup = (m.PrefGroup + 2) % 3
+	case "up", "k":
+		*cursor = max(*cursor-1, 0)
+	case "down", "j":
+		*cursor = min(*cursor+1, size-1)
+	case "esc":
+		m.State = StateCitySelect
+		if len(m.CityOptions) == 0 {
+			m.State = StateCity
+		}
+	case "enter":
+		m.Config.Units = unitOptions[m.UnitCursor].value
+		m.Config.DefaultView = viewOptions[m.ViewCursor].value
+		m.Config.ShowTips = tipOptions[m.TipCursor].value == "on"
+		m.State = StateApiKeyOption
+	}
+	return m, nil
+}
+
+func (m Model) handleSignInKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "up", "k":
+		m.ApiKeyCursor = 0
+	case "down", "j":
+		m.ApiKeyCursor = 1
+	case "esc":
+		m.State = StatePreferences
+	case "enter":
+		if m.ApiKeyCursor == 1 {
+			m.State = StateApiKeyInput
+			return m, m.ApiKeyInput.Focus()
+		}
+		m.WantsGitHub = m.NeedsAuth
+		m.State = StateComplete
+	}
+	return m, nil
+}
+
 func (m Model) handleApiKeyInput(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
-	case "ctrl+c":
-		m.Quitting = true
-		return m, tea.Quit
-	case "enter":
-		if m.ApiKeyInput.Value() != "" {
-			authConfig := &config.AuthConfig{
-				APIKey:     m.ApiKeyInput.Value(),
-				ServerURL:  m.Config.ApiUrl,
-				LastAuth:   time.Now(),
-				GithubUser: "OpenWeather API User",
-			}
-
-			if err := config.SaveAuthConfig(authConfig); err != nil {
-				fmt.Printf("Error: %v\n", err)
-			} else {
-				m.NeedsAuth = false
-			}
-		}
-		m.State = StateComplete
-		return m, nil
 	case "esc":
+		m.ApiKeyInput.Blur()
 		m.State = StateApiKeyOption
+		return m, nil
+	case "enter":
+		key := strings.TrimSpace(m.ApiKeyInput.Value())
+		if key == "" {
+			return m, nil
+		}
+		authConfig := &config.AuthConfig{
+			APIKey:     key,
+			ServerURL:  m.Config.ApiUrl,
+			LastAuth:   time.Now(),
+			GithubUser: "OpenWeather API User",
+		}
+		if err := config.SaveAuthConfig(authConfig); err != nil {
+			m.SearchErr = err.Error()
+			return m, nil
+		}
+		m.NeedsAuth = false
+		m.WantsGitHub = false
+		m.ApiKeyInput.Blur()
+		m.State = StateComplete
 		return m, nil
 	}
 
@@ -61,242 +202,13 @@ func (m Model) handleApiKeyInput(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
-// updates the model based on messages
-func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	var cmds []tea.Cmd
-
-	switch msg := msg.(type) {
-	case tea.KeyPressMsg:
-		switch m.State {
-		case StateCity:
-			return m.handleTextInput(msg)
-		case StateApiKeyInput:
-			return m.handleApiKeyInput(msg)
-		}
-		return m.handleKeyPress(msg)
-	case tea.WindowSizeMsg:
-		m.Width = msg.Width
-		m.Height = msg.Height
-	case SetupCompleteMsg:
-		m.State = StateComplete
-		return m, nil
-	case CitiesSearchResult:
-		if msg.err != nil {
-			fmt.Printf("Error searching cities: %v\n", msg.err)
-			m.State = StateCity
-			return m, nil
-		}
-
-		m.CityOptions = msg.cities
-		m.CityCursor = 0
-
-		if len(m.CityOptions) == 0 {
-			fmt.Println("No cities found. Please try a different search.")
-			m.State = StateCity
-			return m, nil
-		}
-
-		m.State = StateCitySelect
-		return m, nil
-	case spinner.TickMsg:
-		var spinnerCmd tea.Cmd
-		m.Spinner, spinnerCmd = m.Spinner.Update(msg)
-		cmds = append(cmds, spinnerCmd)
-	default:
-		switch m.State {
-		case StateCity:
-			var tiCmd tea.Cmd
-			m.CityInput, tiCmd = m.CityInput.Update(msg)
-			if tiCmd != nil {
-				cmds = append(cmds, tiCmd)
-			}
-		case StateApiKeyInput:
-			var tiCmd tea.Cmd
-			m.ApiKeyInput, tiCmd = m.ApiKeyInput.Update(msg)
-			if tiCmd != nil {
-				cmds = append(cmds, tiCmd)
-			}
-		}
-	}
-
-	return m, tea.Batch(cmds...)
-}
-
-func (m Model) handleKeyPress(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+func (m Model) handleCompleteKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
-	case "ctrl+c":
-		m.Quitting = true
+	case "enter":
 		return m, tea.Quit
 	case "esc":
-		if m.State == StateCitySelect {
-			m.State = StateCity
-		}
-		return m, nil
-	case "enter":
-		return m.handleEnterKey()
-	case "up", "k":
-		return m.handleUpKey()
-	case "down", "j":
-		return m.handleDownKey()
-	}
-	return m, nil
-}
-
-func (m Model) handleEnterKey() (tea.Model, tea.Cmd) {
-	switch m.State {
-	case StateCity:
-		if m.CityInput.Value() != "" {
-			m.CitySearchQuery = m.CityInput.Value()
-			m.State = StateCitySearch
-			return m, m.searchCities()
-		}
-
-	case StateCitySelect:
-		if len(m.CityOptions) > 0 {
-			selectedCity := m.CityOptions[m.CityCursor]
-			m.Config.DefaultCity = selectedCity.Name
-			m.State = StateUnits
-		}
-
-	case StateUnits:
-		unitValues := []string{"metric", "imperial", "standard"}
-		m.Config.Units = unitValues[m.UnitCursor]
-		m.State = StateView
-
-	case StateView:
-		viewValues := []string{"default", "compact", "daily", "hourly", "full"}
-		m.Config.DefaultView = viewValues[m.ViewCursor]
-		m.State = StateTips
-
-	case StateTips:
-		m.Config.ShowTips = (m.TipCursor == 0)
+		m.WantsGitHub = false
 		m.State = StateApiKeyOption
-
-	case StateApiKeyOption:
-		if m.ApiKeyCursor == 0 {
-			if m.NeedsAuth {
-				m.State = StateAuth
-			} else {
-				m.State = StateComplete
-			}
-		} else {
-			m.State = StateApiKeyInput
-			m.ApiKeyInput.Focus()
-		}
-
-	case StateApiKeyInput:
-		if m.ApiKeyInput.Value() != "" {
-			authConfig := &config.AuthConfig{
-				APIKey:     m.ApiKeyInput.Value(),
-				ServerURL:  m.Config.ApiUrl,
-				LastAuth:   time.Now(),
-				GithubUser: "",
-			}
-
-			if err := config.SaveAuthConfig(authConfig); err != nil {
-				fmt.Printf("Error: %v\n", err)
-			} else {
-				m.NeedsAuth = false
-			}
-		}
-		m.State = StateComplete
-
-	case StateAuth:
-		if err := m.Config.Save(); err != nil {
-			fmt.Printf("Error: %v\n", err)
-		}
-
-		if m.AuthCursor == 0 {
-			// user chose to auth
-			return m, tea.Quit
-		} else {
-			// user skipped auth
-			m.State = StateComplete
-		}
-
-	case StateComplete:
-		return m, tea.Quit
-	}
-
-	return m, nil
-}
-
-// process up n down keypresses
-func (m Model) handleUpKey() (tea.Model, tea.Cmd) {
-	switch m.State {
-	case StateUnits:
-		if m.UnitCursor > 0 {
-			m.UnitCursor--
-		}
-	case StateView:
-		if m.ViewCursor > 0 {
-			m.ViewCursor--
-		}
-	case StateAuth:
-		if m.AuthCursor > 0 {
-			m.AuthCursor--
-		}
-	case StateCitySelect:
-		if m.CityCursor > 0 {
-			m.CityCursor--
-		}
-	case StateTips:
-		if m.TipCursor > 0 {
-			m.TipCursor--
-		}
-	case StateApiKeyOption:
-		if m.ApiKeyCursor > 0 {
-			m.ApiKeyCursor--
-		}
 	}
 	return m, nil
-}
-
-func (m Model) handleDownKey() (tea.Model, tea.Cmd) {
-	switch m.State {
-	case StateUnits:
-		if m.UnitCursor < len(m.UnitOptions)-1 {
-			m.UnitCursor++
-		}
-	case StateView:
-		if m.ViewCursor < len(m.ViewOptions)-1 {
-			m.ViewCursor++
-		}
-	case StateAuth:
-		if m.AuthCursor < len(m.AuthOptions)-1 {
-			m.AuthCursor++
-		}
-	case StateCitySelect:
-		if m.CityCursor < len(m.CityOptions)-1 {
-			m.CityCursor++
-		}
-	case StateTips:
-		if m.TipCursor < len(m.TipOptions)-1 {
-			m.TipCursor++
-		}
-	case StateApiKeyOption:
-		if m.ApiKeyCursor < len(m.ApiKeyOptions)-1 {
-			m.ApiKeyCursor++
-		}
-	}
-	return m, nil
-}
-
-func (m Model) handleTextInput(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
-	switch msg.String() {
-	case "ctrl+c":
-		m.Quitting = true
-		return m, tea.Quit
-	case "enter":
-		if m.CityInput.Value() != "" {
-			m.CitySearchQuery = m.CityInput.Value()
-			m.State = StateCitySearch
-			return m, m.searchCities()
-		}
-		return m, nil
-	}
-
-	var cmd tea.Cmd
-	m.CityInput, cmd = m.CityInput.Update(msg)
-	return m, cmd
 }

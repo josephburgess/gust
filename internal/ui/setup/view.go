@@ -1,221 +1,300 @@
 package setup
 
 import (
-	tea "charm.land/bubbletea/v2"
 	"fmt"
+	"image/color"
 	"strings"
 
+	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/ansi"
+	"github.com/josephburgess/gust/internal/config"
+	"github.com/josephburgess/gust/internal/ui/styles"
+	"github.com/josephburgess/gust/internal/ui/widgets"
 )
 
-func ClearViewport(width, height int) string {
-	var sb strings.Builder
+// Column widths for the centred content, in cells.
+const (
+	columnWidth      = 80
+	preferencesWidth = 110
+)
 
-	blankLine := strings.Repeat(" ", width)
-	for i := 0; i < height; i++ {
-		sb.WriteString(blankLine + "\n")
-	}
+var steps = []string{"city", "preferences", "sign in"}
 
-	sb.WriteString("\033[H")
+type keyHint struct{ key, label string }
 
-	return sb.String()
+func fg(c color.Color) lipgloss.Style {
+	return lipgloss.NewStyle().Foreground(c)
 }
 
 // rendr current state of setup wizard
 func (m Model) View() tea.View {
-	var result strings.Builder
-
-	if m.Width > 0 && m.Height > 0 {
-		result.WriteString(ClearViewport(m.Width, m.Height))
-	}
-
-	content := m.buildContent()
-	result.WriteString(m.centerContent(content))
-
-	v := tea.NewView(result.String())
+	v := tea.NewView(m.render())
 	v.AltScreen = true
 	return v
 }
 
-// create correct content for currnet state
-func (m Model) buildContent() string {
-	var sb strings.Builder
+func (m Model) step() int {
+	switch m.State {
+	case StatePreferences:
+		return 1
+	case StateApiKeyOption, StateApiKeyInput:
+		return 2
+	case StateComplete:
+		return 3
+	default:
+		return 0
+	}
+}
 
-	sb.WriteString(logoBoxStyle.Render(asciiLogo) + "\n\n")
-	sb.WriteString(subtitleStyle.Render("Simple terminal weather 🌤️") + "\n\n")
+func (m Model) width() int {
+	want := columnWidth
+	if m.State == StatePreferences {
+		want = preferencesWidth
+	}
+	if m.Width == 0 {
+		return want
+	}
+	return min(want, m.Width-4)
+}
+
+func (m Model) render() string {
+	width := m.width()
+	var heading, sub, content string
+	var hints []keyHint
 
 	switch m.State {
-	case StateCity:
-		sb.WriteString(highlightStyle.Render("Enter a default city 🏙️") + "\n\n")
-		sb.WriteString(m.CityInput.View() + "\n\n")
-		sb.WriteString(hintStyle.Render("You can enter a country code too, but use a comma! (e.g. London,GB)"))
-
-	case StateCitySearch:
-		sb.WriteString(highlightStyle.Render("Searching for cities...") + "\n\n")
-		sb.WriteString(fmt.Sprintf("%s Looking for \"%s\"", m.Spinner.View(), m.CitySearchQuery))
-		sb.WriteString("\n\n")
-
-	case StateCitySelect:
-		sb.WriteString(highlightStyle.Render("Select your town or city: 🏙️") + "\n\n")
-
-		if len(m.CityOptions) == 0 {
-			sb.WriteString("No cities found. Please try a different search term.\n\n")
-		} else {
-			for i, city := range m.CityOptions {
-				var line string
-				var locationInfo string
-
-				if city.State != "" && city.Country != "" {
-					flag := getCountryEmoji(city.Country)
-					locationInfo = fmt.Sprintf("%s, %s %s", city.State, city.Country, flag)
-				} else if city.Country != "" {
-					flag := getCountryEmoji(city.Country)
-					locationInfo = fmt.Sprintf("%s %s", flag, locationInfo)
-				} else {
-					locationInfo = fmt.Sprintf("(%.4f, %.4f)", city.Lat, city.Lon)
-				}
-
-				displayName := fmt.Sprintf("%s - %s", city.Name, locationInfo)
-
-				if m.CityCursor == i {
-					line = fmt.Sprintf("%s %s", cursorStyle.Render("→"), selectedItemStyle.Render(displayName))
-				} else {
-					line = fmt.Sprintf("  %s", displayName)
-				}
-				sb.WriteString(line + "\n")
-			}
-			sb.WriteString("\n")
-		}
-
-		sb.WriteString(hintStyle.Render("Press Enter to select or Esc to search again"))
-
-	case StateUnits:
-		sb.WriteString(highlightStyle.Render("Choose your preferred units: 🌡️") + "\n\n")
-		sb.WriteString(m.renderOptions(m.UnitOptions, m.UnitCursor))
-		sb.WriteString("\n" + hintStyle.Render("Press Enter to confirm"))
-
-	case StateView:
-		sb.WriteString(highlightStyle.Render("Choose your preferred view: 📊") + "\n\n")
-		sb.WriteString(m.renderOptions(m.ViewOptions, m.ViewCursor))
-		sb.WriteString("\n" + hintStyle.Render("Press Enter to confirm"))
-
-	case StateAuth:
-		sb.WriteString(highlightStyle.Render("GitHub Auth 🔒") + "\n\n")
-		sb.WriteString("To get weather data you need to authenticate with GitHub (don't worry, no permissions requested!).\n\n")
-		sb.WriteString(m.renderOptions(m.AuthOptions, m.AuthCursor))
-		sb.WriteString("\n" + hintStyle.Render("Press Enter to confirm your selection"))
-
+	case StatePreferences:
+		heading, sub = "How do you like it?", "Pick your units, the tab gust opens on, and tips."
+		content = m.preferencesView(width)
+		hints = []keyHint{{"tab", "group"}, {"↑↓", "choose"}, {"enter", "next"}, {"esc", "back"}}
+	case StateApiKeyOption, StateApiKeyInput:
+		heading, sub = "Last bit: how should gust get weather?", "gust talks to breeze, a small proxy, so most people never need a key."
+		content = m.signInView(width)
+		hints = []keyHint{{"↑↓", "choose"}, {"enter", "select"}, {"esc", "back"}}
 	case StateComplete:
-		sb.WriteString(highlightStyle.Render("✓ Setup complete! 🎉") + "\n\n")
-		sb.WriteString(fmt.Sprintf("Default city: %s 🏙️\n", m.Config.DefaultCity))
-		sb.WriteString(fmt.Sprintf("Units: %s 🌡️\n", m.Config.Units))
-		sb.WriteString(fmt.Sprintf("Default view: %s 📊\n", m.Config.DefaultView))
-		if m.Config.ShowTips {
-			sb.WriteString("Tips enabled 💡\n")
+		content = m.completeView(width)
+		hints = []keyHint{{"enter", "show me the weather"}, {"esc", "back"}}
+	default:
+		heading, sub = "Where's home?", "Your default city. Change it any time with c or s."
+		content = m.cityView(width)
+		hints = []keyHint{{"enter", "search / pick"}, {"↑↓", "choose"}, {"ctrl+c", "quit"}}
+	}
+
+	header := lipgloss.NewStyle().Width(width).Render(spread(
+		fg(styles.Rose).Bold(true).Render("gust")+fg(styles.Subtle).Render(" setup"),
+		widgets.StepRail(steps, m.step()),
+		width,
+	))
+	parts := []string{header, ""}
+	if heading != "" {
+		parts = append(parts, lipgloss.NewStyle().Bold(true).Render(heading), fg(styles.Subtle).Render(sub), "")
+	}
+	column := lipgloss.JoinVertical(lipgloss.Left, append(parts, content)...)
+
+	if m.Width == 0 || m.Height == 0 {
+		return column
+	}
+	return lipgloss.JoinVertical(lipgloss.Left,
+		lipgloss.Place(m.Width, m.Height-1, lipgloss.Center, lipgloss.Center, column),
+		m.keyBar(hints),
+	)
+}
+
+// spread puts left and right at the two ends of a width-cell row.
+func spread(left, right string, width int) string {
+	gap := max(width-ansi.StringWidth(left)-ansi.StringWidth(right), 1)
+	return left + strings.Repeat(" ", gap) + right
+}
+
+func (m Model) keyBar(hints []keyHint) string {
+	bar := lipgloss.NewStyle().Background(styles.Surface)
+	parts := make([]string, len(hints))
+	for i, h := range hints {
+		parts[i] = bar.Foreground(styles.Gold).Render(h.key) + bar.Render(" ") + bar.Foreground(styles.Subtle).Render(h.label)
+	}
+	left := bar.Render(" ") + strings.Join(parts, bar.Render("  "))
+
+	info := "done"
+	if m.step() < len(steps) {
+		info = fmt.Sprintf("step %d of %d", m.step()+1, len(steps))
+	}
+	right := bar.Foreground(styles.Subtle).Render(info) + bar.Render(" ")
+
+	gap := max(m.Width-ansi.StringWidth(left)-ansi.StringWidth(right), 0)
+	return left + bar.Render(strings.Repeat(" ", gap)) + right
+}
+
+func (m Model) cityView(width int) string {
+	m.CityInput.SetWidth(width - 6)
+	input := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(styles.Iris).
+		Padding(0, 1).
+		Width(width).
+		Render(m.CityInput.View())
+
+	parts := []string{input, ""}
+	switch {
+	case m.State == StateCitySearch:
+		parts = append(parts, m.Spinner.View()+" "+fg(styles.Subtle).Render(fmt.Sprintf("searching for %q…", m.CitySearchQuery)))
+	case m.SearchErr != "":
+		parts = append(parts, fg(styles.Love).Render(m.SearchErr))
+	case m.State == StateCitySelect:
+		parts = append(parts, fg(styles.Subtle).Render(fmt.Sprintf("%d MATCHES", len(m.CityOptions))))
+		for i := range m.CityOptions {
+			parts = append(parts, m.cityRow(i, width))
+		}
+	}
+	parts = append(parts, "", fg(styles.Subtle).Italic(true).Render("not there? add a country code, like london,gb"))
+	return lipgloss.JoinVertical(lipgloss.Left, parts...)
+}
+
+func (m Model) cityRow(i, width int) string {
+	city := m.CityOptions[i]
+	selected := i == m.CityCursor
+	bg := func(s lipgloss.Style) lipgloss.Style {
+		if selected {
+			return s.Background(styles.Overlay)
+		}
+		return s
+	}
+
+	cursor, nameColor := "  ", styles.Text
+	if selected {
+		cursor, nameColor = "▸ ", styles.Foam
+	}
+	place := city.Country
+	if city.State != "" {
+		place = city.State + ", " + city.Country
+	}
+
+	left := bg(fg(styles.Love)).Render(cursor) +
+		bg(fg(nameColor).Bold(true)).Render(city.Name) +
+		bg(lipgloss.NewStyle()).Render("  ") +
+		bg(fg(styles.Subtle)).Render(place)
+	right := bg(fg(styles.Subtle)).Render(fmt.Sprintf("%.2f, %.2f", city.Lat, city.Lon))
+	gap := max(width-ansi.StringWidth(left)-ansi.StringWidth(right), 1)
+	return left + bg(lipgloss.NewStyle()).Render(strings.Repeat(" ", gap)) + right
+}
+
+func radioRows(options []option, cursor int) string {
+	rows := make([]string, len(options))
+	for i, o := range options {
+		if i == cursor {
+			rows[i] = fg(styles.Foam).Render("● "+o.label) + "  " + fg(styles.Subtle).Render(o.detail)
 		} else {
-			sb.WriteString("Tips disabled 💡\n")
+			rows[i] = fg(styles.Subtle).Render("○ " + o.label + "  " + o.detail)
 		}
-
-	case StateTips:
-		sb.WriteString(highlightStyle.Render("Would you like tips shown on daily forecasts? 💡") + "\n\n")
-		sb.WriteString(m.renderOptions(m.TipOptions, m.TipCursor))
-		sb.WriteString("\n" + hintStyle.Render("Press Enter to confirm"))
-
-		if m.NeedsAuth {
-			authStatus := "Authenticated ✅"
-			if m.AuthCursor == 1 {
-				authStatus = "Not authenticated ❌"
-			}
-			sb.WriteString(fmt.Sprintf("GitHub: %s\n", authStatus))
-		}
-
-	case StateApiKeyOption:
-		sb.WriteString(highlightStyle.Render("Choose auth method: 🔑") + "\n\n")
-		sb.WriteString(m.renderOptions(m.ApiKeyOptions, m.ApiKeyCursor))
-		sb.WriteString("\n" + hintStyle.Render("Press Enter to confirm"))
-
-	case StateApiKeyInput:
-		sb.WriteString(highlightStyle.Render("Enter your OpenWeatherMap API key: 🔑") + "\n\n")
-		sb.WriteString(m.ApiKeyInput.View() + "\n\n")
-		sb.WriteString(hintStyle.Render("Get your API key from https://home.openweathermap.org/subscriptions/unauth_subscribe/onecall_30/base"))
-
 	}
-
-	// footer
-	sb.WriteString("\n" + hintStyle.Render("↓j/↑k Navigate • Enter: Select • Ctrl + C: Quit"))
-
-	return sb.String()
+	return strings.Join(rows, "\n")
 }
 
-// renders a list of opts with current selection highlighted
-func (m Model) renderOptions(options []string, cursor int) string {
-	var sb strings.Builder
-
-	for i, option := range options {
-		var line string
-		if cursor == i {
-			line = fmt.Sprintf("%s %s", cursorStyle.Render("→"), selectedItemStyle.Render(option))
-		} else {
-			line = fmt.Sprintf("  %s", option)
-		}
-		sb.WriteString(line + "\n")
-	}
-
-	return sb.String()
+func (m Model) preferencesView(width int) string {
+	left := 44
+	groups := lipgloss.JoinVertical(lipgloss.Left,
+		widgets.Panel("units", radioRows(unitOptions, m.UnitCursor), left, m.PrefGroup == GroupUnits),
+		widgets.Panel("opens on", radioRows(viewOptions, m.ViewCursor), left, m.PrefGroup == GroupView),
+		widgets.Panel("tips", radioRows(tipOptions, m.TipCursor), left, m.PrefGroup == GroupTips),
+	)
+	return lipgloss.JoinHorizontal(lipgloss.Top, groups, "  ", m.preview(width-left-2))
 }
 
-// center in viewport
-func (m Model) centerContent(content string) string {
-	var sb strings.Builder
-	lines := strings.Split(content, "\n")
-
-	// only try to center if we have dimensions
-	if m.Width > 0 && m.Height > 0 {
-		// vert
-		contentHeight := len(lines)
-		verticalPadding := (m.Height - contentHeight) / 2
-
-		if verticalPadding > 0 {
-			sb.WriteString(strings.Repeat("\n", verticalPadding))
-		}
-
-		// horiz
-		for _, line := range lines {
-			visibleLen := lipgloss.Width(line)
-			padding := (m.Width - visibleLen) / 2
-
-			if padding > 0 {
-				sb.WriteString(strings.Repeat(" ", padding))
-			}
-			sb.WriteString(line + "\n")
-		}
-	} else {
-		// else just render
-		sb.WriteString(content)
+// preview is a fake Now line in the chosen units.
+func (m Model) preview(width int) string {
+	temp, wind := "9°C", "24 km/h"
+	switch unitOptions[m.UnitCursor].value {
+	case "imperial":
+		temp, wind = "49°F", "15 mph"
+	case "standard":
+		temp, wind = "283K", "24 km/h"
+	}
+	city := m.Config.DefaultCity
+	if city == "" {
+		city = "London"
 	}
 
-	return sb.String()
+	surface := lipgloss.NewStyle().Background(styles.Surface)
+	lines := []string{
+		fg(styles.Subtle).Render("PREVIEW"),
+		"",
+		fg(styles.Rose).Bold(true).Render(city) + "  " + fg(styles.Gold).Bold(true).Render(temp) + " " +
+			fg(styles.Foam).Render("light rain") + fg(styles.Subtle).Render(" · ↗ "+wind+" SW"),
+		fg(styles.Subtle).Render("opens on ") + viewOptions[m.ViewCursor].label,
+	}
+	if tipOptions[m.TipCursor].value == "on" {
+		lines = append(lines, "", fg(styles.Iris).Italic(true).Render("› don't go out without an umbrella!"))
+	}
+	return surface.Padding(1, 2).Width(width).Render(strings.Join(lines, "\n"))
 }
 
-func getCountryEmoji(countryCode string) string {
-	if countryCode == "" {
-		return "🌍"
+func (m Model) signInView(width int) string {
+	github := lipgloss.NewStyle().Bold(true).Render("Sign in with GitHub") + "  " + fg(styles.Gold).Render("recommended") + "\n" +
+		fg(styles.Subtle).Render("breeze gives gust a key. No GitHub permissions are asked for.")
+
+	key := lipgloss.NewStyle().Bold(true).Render("Use my own OpenWeatherMap key") + "\n" +
+		fg(styles.Subtle).Render("Needs a One Call 3.0 subscription.")
+	if m.State == StateApiKeyInput {
+		m.ApiKeyInput.SetWidth(width - 8)
+		key += "\n\n" + fg(styles.Subtle).Render("API KEY") + "\n" + m.ApiKeyInput.View() + "\n\n" +
+			fg(styles.Subtle).Render("https://openweathermap.org/api/one-call-3") + "\n" +
+			fg(styles.Subtle).Render("saved to ~/.config/gust/auth.json")
+		if m.SearchErr != "" {
+			key += "\n" + fg(styles.Love).Render(m.SearchErr)
+		}
 	}
 
-	if len(countryCode) != 2 {
-		return "🌍"
-	}
-
-	cc := strings.ToUpper(countryCode)
-	const offset = 127397
-	firstLetter := rune(cc[0]) + offset
-	secondLetter := rune(cc[1]) + offset
-	flag := string(firstLetter) + string(secondLetter)
-
-	return flag
+	return lipgloss.JoinVertical(lipgloss.Left,
+		widgets.Panel("", github, width, m.ApiKeyCursor == 0),
+		widgets.Panel("", key, width, m.ApiKeyCursor == 1),
+	)
 }
 
-// Add helper functions to work with country names and emojis
+func (m Model) weatherVia() string {
+	if m.ApiKeyCursor == 1 {
+		key := m.ApiKeyInput.Value()
+		return "your key ••••" + key[max(len(key)-4, 0):]
+	}
+	return "GitHub"
+}
 
-// GetCountryEmojiByName returns the flag emoji for a given country name
-// It converts the name to lowercase for case-insensitive matching
+func (m Model) completeView(width int) string {
+	path, _ := config.GetConfigPath()
+	tips := "off"
+	if m.Config.ShowTips {
+		tips = "on"
+	}
+
+	row := func(label, value string) string {
+		return fg(styles.Subtle).Width(14).Render(label) + value
+	}
+	summary := strings.Join([]string{
+		row("city", m.Config.DefaultCity),
+		row("units", m.Config.Units),
+		row("opens on", viewOptions[optionIndex(viewOptions, m.Config.DefaultView)].label),
+		row("tips", tips),
+		row("weather via", m.weatherVia()),
+	}, "\n")
+
+	cell := func(k, label string) string {
+		return lipgloss.NewStyle().Width((width - 4) / 3).Render(fg(styles.Gold).Render(k) + " " + fg(styles.Subtle).Render(label))
+	}
+	handy := widgets.Panel("handy keys", lipgloss.JoinVertical(lipgloss.Left,
+		lipgloss.JoinHorizontal(lipgloss.Top, cell("1-4", "tabs"), cell("c", "city"), cell("u", "units")),
+		lipgloss.JoinHorizontal(lipgloss.Top, cell("r", "refresh"), cell("s", "settings"), cell("?", "help")),
+	), width, false)
+
+	cta := lipgloss.NewStyle().Background(styles.Gold).Foreground(styles.Base).Bold(true).Padding(0, 2).
+		Render("enter  show me the weather")
+
+	return lipgloss.JoinVertical(lipgloss.Left,
+		fg(styles.Foam).Bold(true).Render("✓ ")+lipgloss.NewStyle().Bold(true).Render("You're set."),
+		fg(styles.Subtle).Render("saved to "+path),
+		"",
+		summary,
+		"",
+		handy,
+		"",
+		cta,
+	)
+}

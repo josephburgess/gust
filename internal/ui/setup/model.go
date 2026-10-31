@@ -18,33 +18,28 @@ const (
 	StateCity SetupState = iota
 	StateCitySearch
 	StateCitySelect
-	StateUnits
-	StateView
-	StateTips
-	StateAuth
+	StatePreferences
 	StateApiKeyOption
 	StateApiKeyInput
 	StateComplete
 )
 
-const asciiLogo = `
-                         __
-       ____ ___  _______/ /_
-      / ** '/ / / / **_/ __/
-     / /_/ / /_/ (__  ) /_
-     \__, /\__,_/____/\__/  💨🍃
-    /____/                      `
+// PrefGroup is the focused panel on the preferences step.
+type PrefGroup int
 
-// setup ui styles
+const (
+	GroupUnits PrefGroup = iota
+	GroupView
+	GroupTips
+)
+
+// option is one radio row: value is what the config stores.
+type option struct{ value, label, detail string }
+
 var (
-	titleStyle        = lipgloss.NewStyle().Bold(true).Foreground(styles.Rose)
-	boxStyle          = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(styles.Iris).Padding(0, 1, 0, 1)
-	logoBoxStyle      = lipgloss.NewStyle().Border(lipgloss.DoubleBorder()).BorderForeground(styles.Subtle).Padding(0, 2, 2, 1).Foreground(styles.Foam)
-	subtitleStyle     = lipgloss.NewStyle().Foreground(styles.Gold)
-	highlightStyle    = lipgloss.NewStyle().Bold(true).Foreground(styles.Text)
-	cursorStyle       = lipgloss.NewStyle().Foreground(styles.Love)
-	selectedItemStyle = lipgloss.NewStyle().Foreground(styles.Foam)
-	hintStyle         = lipgloss.NewStyle().Foreground(styles.Subtle).Italic(true)
+	unitOptions = []option{{"metric", "metric", "°C · km/h"}, {"imperial", "imperial", "°F · mph"}, {"standard", "standard", "K · km/h"}}
+	viewOptions = []option{{"now", "Now", ""}, {"hourly", "Hourly", ""}, {"daily", "5-day", ""}, {"compact", "compact", "print and exit"}}
+	tipOptions  = []option{{"on", "on", "a tip under the weather"}, {"off", "off", ""}}
 )
 
 // current state of wizard
@@ -55,22 +50,29 @@ type Model struct {
 	CitySearchQuery string
 	CityOptions     []models.City
 	CityCursor      int
+	SearchErr       string
 	Client          *api.Client
-	UnitOptions     []string
 	UnitCursor      int
-	ViewOptions     []string
 	ViewCursor      int
-	AuthOptions     []string
-	AuthCursor      int
-	TipOptions      []string
 	TipCursor       int
+	PrefGroup       PrefGroup
 	NeedsAuth       bool
-	Width, Height   int
-	Quitting        bool
-	Spinner         components.SpinnerModel
-	ApiKeyOptions   []string
-	ApiKeyCursor    int
-	ApiKeyInput     textinput.Model
+	// WantsGitHub asks the runner to sign in with GitHub after the wizard closes
+	WantsGitHub   bool
+	Width, Height int
+	Quitting      bool
+	Spinner       components.SpinnerModel
+	ApiKeyCursor  int
+	ApiKeyInput   textinput.Model
+}
+
+func optionIndex(options []option, value string) int {
+	for i, o := range options {
+		if o.value == value {
+			return i
+		}
+	}
+	return 0
 }
 
 // creates a new setup model
@@ -79,73 +81,41 @@ func NewModel(cfg *config.Config, needsAuth bool, client *api.Client) Model {
 	for _, state := range []*textinput.StyleState{&inputStyles.Focused, &inputStyles.Blurred} {
 		state.Prompt = lipgloss.NewStyle().Foreground(styles.Love)
 		state.Text = lipgloss.NewStyle().Foreground(styles.Text)
+		state.Placeholder = lipgloss.NewStyle().Foreground(styles.Subtle)
 	}
 	inputStyles.Cursor.Color = styles.Gold
 
 	ti := textinput.New()
+	ti.Prompt = "› "
 	ti.Placeholder = "Wherever the wind blows..."
 	ti.Focus()
 	ti.CharLimit = 50
-	ti.SetWidth(len(ti.Placeholder))
 	ti.SetStyles(inputStyles)
 
 	apiKeyInput := textinput.New()
-	apiKeyInput.Placeholder = "Paste your OpenWeather API key here..."
+	apiKeyInput.Prompt = "› "
+	apiKeyInput.Placeholder = "paste your key"
 	apiKeyInput.CharLimit = 64
-	apiKeyInput.SetWidth(len(apiKeyInput.Placeholder))
+	apiKeyInput.EchoMode = textinput.EchoPassword
 	apiKeyInput.SetStyles(inputStyles)
 
-	unitCursor := 0
-	switch cfg.Units {
-	case "imperial":
-		unitCursor = 1
-	case "standard":
-		unitCursor = 2
-	}
-
-	viewCursor := 0
-	switch cfg.DefaultView {
-	case "compact":
-		viewCursor = 1
-	case "daily":
-		viewCursor = 2
-	case "hourly":
-		viewCursor = 3
-	case "full":
-		viewCursor = 4
+	tipCursor := 0
+	if cfg.DefaultCity != "" && !cfg.ShowTips {
+		tipCursor = 1
 	}
 
 	return Model{
-		Config:          cfg,
-		State:           StateCity,
-		CityInput:       ti,
-		CitySearchQuery: "",
-		CityOptions:     []models.City{},
-		CityCursor:      0,
-		Client:          client,
-		UnitOptions:     []string{"metric (°C, km/h) 🌡️", "imperial (°F, mph) 🌡️", "standard (K, m/s) 🌡️"},
-		UnitCursor:      unitCursor,
-		ViewOptions: []string{
-			"detailed 🌤️",
-			"compact 📊",
-			"5-day 📆",
-			"24-hour 🕒",
-			"full (current + 5-day + alerts) 📋",
-		},
-		ViewCursor:  viewCursor,
-		TipOptions:  []string{"Yes, show weather tips", "No, don't show tips"},
-		TipCursor:   0,
-		AuthOptions: []string{"Yes, authenticate with GitHub 🔑", "No, I'll do it later ⏱️"},
-		AuthCursor:  0,
+		Config:      cfg,
+		State:       StateCity,
+		CityInput:   ti,
+		CityOptions: []models.City{},
+		Client:      client,
+		UnitCursor:  optionIndex(unitOptions, cfg.Units),
+		ViewCursor:  optionIndex(viewOptions, cfg.DefaultView),
+		TipCursor:   tipCursor,
 		NeedsAuth:   needsAuth,
-		Quitting:    false,
 		Spinner:     components.NewSpinner(),
-		ApiKeyOptions: []string{
-			"Use gust's authentication (recommended)",
-			"Use my own OpenWeatherMap API key",
-		},
-		ApiKeyCursor: 0,
-		ApiKeyInput:  apiKeyInput,
+		ApiKeyInput: apiKeyInput,
 	}
 }
 

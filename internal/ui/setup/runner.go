@@ -53,8 +53,8 @@ func RunSetup(cfg *config.Config, needsAuth bool) error {
 		return fmt.Errorf("failed to save configuration: %w", err)
 	}
 
-	// handle auth if chosen
-	if finalSetupModel.State == StateAuth && finalSetupModel.AuthCursor == 0 {
+	// github sign in runs after the wizard: Authenticate prints and opens a browser
+	if finalSetupModel.WantsGitHub {
 		fmt.Println("Starting GitHub authentication...")
 		auth, err := config.Authenticate(cfg.ApiUrl)
 		if err != nil {

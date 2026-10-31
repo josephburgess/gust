@@ -1,9 +1,9 @@
 package setup
 
 import (
+	"errors"
 	"testing"
 
-	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
 	"github.com/josephburgess/gust/internal/api"
 	"github.com/josephburgess/gust/internal/config"
@@ -11,506 +11,258 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestStateTransitions(t *testing.T) {
+var (
+	enter   = tea.KeyPressMsg{Code: tea.KeyEnter}
+	esc     = tea.KeyPressMsg{Code: tea.KeyEscape}
+	down    = tea.KeyPressMsg{Code: tea.KeyDown}
+	up      = tea.KeyPressMsg{Code: tea.KeyUp}
+	tab     = tea.KeyPressMsg{Code: tea.KeyTab}
+	londons = []models.City{{Name: "London", State: "England", Country: "GB"}, {Name: "London", State: "Ontario", Country: "CA"}}
+)
+
+func TestCityEnterSearches(t *testing.T) {
+	m := NewModel(&config.Config{}, false, &api.Client{})
+	m.CityInput.SetValue("london")
+
+	updated, cmd := m.Update(enter)
+
+	assert.Equal(t, StateCitySearch, updated.(Model).State)
+	assert.Equal(t, "london", updated.(Model).CitySearchQuery)
+	assert.NotNil(t, cmd)
+}
+
+func TestCityEnterWithNoTextDoesNothing(t *testing.T) {
 	m := NewModel(&config.Config{}, false, &api.Client{})
 
-	tests := []struct {
-		name          string
-		initialState  SetupState
-		msg           tea.Msg
-		expectedState SetupState
-		expectedCmd   bool // Whether we expect a non-nil command
-	}{
-		{
-			name:         "city search to city select",
-			initialState: StateCitySearch,
-			msg: CitiesSearchResult{
-				cities: []models.City{{Name: "London"}},
-				err:    nil,
-			},
-			expectedState: StateCitySelect,
-			expectedCmd:   false,
-		},
-		{
-			name:         "empty city search results return to city input",
-			initialState: StateCitySearch,
-			msg: CitiesSearchResult{
-				cities: []models.City{},
-				err:    nil,
-			},
-			expectedState: StateCity,
-			expectedCmd:   false,
-		},
-		{
-			name:         "error in city search returns to city input",
-			initialState: StateCitySearch,
-			msg: CitiesSearchResult{
-				cities: nil,
-				err:    assert.AnError,
-			},
-			expectedState: StateCity,
-			expectedCmd:   false,
-		},
-		{
-			name:          "setup complete transitions to complete state",
-			initialState:  StateAuth,
-			msg:           SetupCompleteMsg{},
-			expectedState: StateComplete,
-			expectedCmd:   false,
-		},
-		{
-			name:          "window size msg updates dimensions",
-			initialState:  StateCity,
-			msg:           tea.WindowSizeMsg{Width: 100, Height: 50},
-			expectedState: StateCity,
-			expectedCmd:   false,
-		},
-		{
-			name:          "spinner tick updates spinner",
-			initialState:  StateCitySearch,
-			msg:           spinner.TickMsg{},
-			expectedState: StateCitySearch,
-			expectedCmd:   true,
-		},
-	}
+	updated, cmd := m.Update(enter)
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			m.State = tt.initialState
-			updatedModel, cmd := m.Update(tt.msg)
-			updated := updatedModel.(Model)
-
-			assert.Equal(t, tt.expectedState, updated.State)
-			if tt.expectedCmd {
-				assert.NotNil(t, cmd)
-			}
-		})
-	}
+	assert.Equal(t, StateCity, updated.(Model).State)
+	assert.Nil(t, cmd)
 }
 
-func TestKeyHandling(t *testing.T) {
+func TestCitySearchResult(t *testing.T) {
 	tests := []struct {
-		name          string
-		state         SetupState
-		key           string
-		keyMsg        tea.KeyPressMsg
-		expectedState SetupState
-		expectedQuit  bool
+		name      string
+		result    CitiesSearchResult
+		wantState SetupState
+		wantErr   string
 	}{
-		{
-			name:          "ctrl+c quits from any state",
-			state:         StateCity,
-			key:           "ctrl+c",
-			keyMsg:        tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl},
-			expectedState: StateCity,
-			expectedQuit:  true,
-		},
-		{
-			name:          "esc from city select returns to city input",
-			state:         StateCitySelect,
-			key:           "esc",
-			keyMsg:        tea.KeyPressMsg{Code: tea.KeyEscape},
-			expectedState: StateCity,
-			expectedQuit:  false,
-		},
-		{
-			name:          "enter in city select transitions to units state",
-			state:         StateCitySelect,
-			key:           "enter",
-			keyMsg:        tea.KeyPressMsg{Code: tea.KeyEnter},
-			expectedState: StateUnits,
-			expectedQuit:  false,
-		},
-		{
-			name:          "down key in units state increments cursor",
-			state:         StateUnits,
-			key:           "down",
-			keyMsg:        tea.KeyPressMsg{Code: tea.KeyDown},
-			expectedState: StateUnits,
-			expectedQuit:  false,
-		},
-		{
-			name:          "up key in view state decrements cursor",
-			state:         StateView,
-			key:           "up",
-			keyMsg:        tea.KeyPressMsg{Code: tea.KeyUp},
-			expectedState: StateView,
-			expectedQuit:  false,
-		},
-		{
-			name:          "j key acts as down key",
-			state:         StateTips,
-			key:           "j",
-			keyMsg:        tea.KeyPressMsg{Code: 'j', Text: "j"},
-			expectedState: StateTips,
-			expectedQuit:  false,
-		},
-		{
-			name:          "k key acts as up key",
-			state:         StateAuth,
-			key:           "k",
-			keyMsg:        tea.KeyPressMsg{Code: 'k', Text: "k"},
-			expectedState: StateAuth,
-			expectedQuit:  false,
-		},
+		{"matches", CitiesSearchResult{cities: londons}, StateCitySelect, ""},
+		{"no matches", CitiesSearchResult{cities: []models.City{}}, StateCity, `no matches for "london"`},
+		{"error", CitiesSearchResult{err: errors.New("boom")}, StateCity, "boom"},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Setup model for test
 			m := NewModel(&config.Config{}, false, &api.Client{})
-			m.State = tt.state
+			m.State = StateCitySearch
+			m.CitySearchQuery = "london"
 
-			// Add required test data
-			if tt.state == StateCitySelect {
-				m.CityOptions = []models.City{{Name: "London"}}
-			}
+			updated, _ := m.Update(tt.result)
 
-			// Track initial cursor value for cursor movement tests
-			var initialCursor int
-			switch tt.state {
-			case StateUnits:
-				initialCursor = m.UnitCursor
-			case StateView:
-				initialCursor = m.ViewCursor
-			case StateTips:
-				initialCursor = m.TipCursor
-			case StateAuth:
-				initialCursor = m.AuthCursor
-			}
-
-			// Call Update
-			updatedModel, cmd := m.Update(tt.keyMsg)
-			updated := updatedModel.(Model)
-
-			// Verify expected state
-			assert.Equal(t, tt.expectedState, updated.State)
-			assert.Equal(t, tt.expectedQuit, updated.Quitting)
-
-			// Verify cursor movement for movement tests
-			if tt.key == "down" || tt.key == "j" {
-				switch tt.state {
-				case StateUnits:
-					assert.Equal(t, initialCursor+1, updated.UnitCursor)
-				case StateView:
-					assert.Equal(t, initialCursor+1, updated.ViewCursor)
-				case StateTips:
-					assert.Equal(t, initialCursor+1, updated.TipCursor)
-				case StateAuth:
-					assert.Equal(t, initialCursor+1, updated.AuthCursor)
-				}
-			} else if tt.key == "up" || tt.key == "k" {
-				switch tt.state {
-				case StateUnits:
-					// If initialCursor is already 0, it should remain 0
-					if initialCursor > 0 {
-						assert.Equal(t, initialCursor-1, updated.UnitCursor)
-					} else {
-						assert.Equal(t, 0, updated.UnitCursor)
-					}
-				case StateView:
-					// If initialCursor is already 0, it should remain 0
-					if initialCursor > 0 {
-						assert.Equal(t, initialCursor-1, updated.ViewCursor)
-					} else {
-						assert.Equal(t, 0, updated.ViewCursor)
-					}
-				case StateTips:
-					// If initialCursor is already 0, it should remain 0
-					if initialCursor > 0 {
-						assert.Equal(t, initialCursor-1, updated.TipCursor)
-					} else {
-						assert.Equal(t, 0, updated.TipCursor)
-					}
-				case StateAuth:
-					// If initialCursor is already 0, it should remain 0
-					if initialCursor > 0 {
-						assert.Equal(t, initialCursor-1, updated.AuthCursor)
-					} else {
-						assert.Equal(t, 0, updated.AuthCursor)
-					}
-				}
-			}
-
-			// Verify quit command
-			if tt.expectedQuit {
-				assert.NotNil(t, cmd)
-			}
+			assert.Equal(t, tt.wantState, updated.(Model).State)
+			assert.Equal(t, tt.wantErr, updated.(Model).SearchErr)
 		})
 	}
 }
 
-func TestEnterKeyHandling(t *testing.T) {
-	tests := []struct {
-		name          string
-		setupModel    func() Model
-		expectedState SetupState
-	}{
-		{
-			name: "city select to units",
-			setupModel: func() Model {
-				m := NewModel(&config.Config{}, false, &api.Client{})
-				m.State = StateCitySelect
-				m.CityOptions = []models.City{{Name: "London"}}
-				return m
-			},
-			expectedState: StateUnits,
-		},
-		{
-			name: "units to view",
-			setupModel: func() Model {
-				m := NewModel(&config.Config{}, false, &api.Client{})
-				m.State = StateUnits
-				return m
-			},
-			expectedState: StateView,
-		},
-		{
-			name: "view to tips",
-			setupModel: func() Model {
-				m := NewModel(&config.Config{}, false, &api.Client{})
-				m.State = StateView
-				return m
-			},
-			expectedState: StateTips,
-		},
-		{
-			name: "tips to auth choices",
-			setupModel: func() Model {
-				m := NewModel(&config.Config{}, true, &api.Client{})
-				m.State = StateTips
-				return m
-			},
-			expectedState: StateApiKeyOption,
-		},
-		{
-			name: "auth to complete (no auth selected)",
-			setupModel: func() Model {
-				m := NewModel(&config.Config{}, true, &api.Client{})
-				m.State = StateAuth
-				m.AuthCursor = 1
-				return m
-			},
-			expectedState: StateComplete,
-		},
-		{
-			name: "empty city input doesn't advance",
-			setupModel: func() Model {
-				m := NewModel(&config.Config{}, false, &api.Client{})
-				m.State = StateCity
-				m.CityInput.SetValue("")
-				return m
-			},
-			expectedState: StateCity,
-		},
-	}
+func TestCitySearchResultIsIgnoredAfterTheSearchEnds(t *testing.T) {
+	m := NewModel(&config.Config{}, false, &api.Client{})
+	m.State = StatePreferences
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			model := tt.setupModel()
-			updatedModel, _ := model.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
-			updated := updatedModel.(Model)
-			assert.Equal(t, tt.expectedState, updated.State)
-		})
-	}
+	updated, _ := m.Update(CitiesSearchResult{cities: londons})
+
+	assert.Equal(t, StatePreferences, updated.(Model).State)
 }
 
-func TestCitySearch(t *testing.T) {
-	t.Run("successful search creates command", func(t *testing.T) {
-		m := NewModel(&config.Config{}, false, &api.Client{})
-		m.CitySearchQuery = "London"
+func TestCitySelectArrowsMoveTheCursor(t *testing.T) {
+	m := NewModel(&config.Config{}, false, &api.Client{})
+	m.State = StateCitySelect
+	m.CityOptions = londons
 
-		cmd := m.searchCities()
-		assert.NotNil(t, cmd)
-	})
+	updated, _ := m.Update(down)
+	updated, _ = updated.Update(down)
+	assert.Equal(t, 1, updated.(Model).CityCursor)
 
-	t.Run("nil client returns error result", func(t *testing.T) {
-		m := NewModel(&config.Config{}, false, nil)
-		m.CitySearchQuery = "London"
-
-		cmd := m.searchCities()
-		result := cmd().(CitiesSearchResult)
-		assert.Error(t, result.err)
-		assert.Contains(t, result.err.Error(), "API client not initialized")
-		assert.Len(t, result.cities, 0)
-	})
-
-	t.Run("empty search query", func(t *testing.T) {
-		m := NewModel(&config.Config{}, false, &api.Client{})
-		m.CitySearchQuery = ""
-
-		// Even with empty query, we should get a valid command
-		cmd := m.searchCities()
-		assert.NotNil(t, cmd)
-	})
+	updated, _ = updated.Update(up)
+	updated, _ = updated.Update(up)
+	assert.Equal(t, 0, updated.(Model).CityCursor)
 }
 
-func TestCursorMovement(t *testing.T) {
+func TestCitySelectEnterPicksTheCity(t *testing.T) {
+	cfg := &config.Config{}
+	m := NewModel(cfg, false, &api.Client{})
+	m.State = StateCitySelect
+	m.CitySearchQuery = "london"
+	m.CityInput.SetValue("london")
+	m.CityOptions = londons
+	m.CityCursor = 1
+
+	updated, _ := m.Update(enter)
+
+	assert.Equal(t, StatePreferences, updated.(Model).State)
+	assert.Equal(t, "London", cfg.DefaultCity)
+}
+
+func TestCitySelectSearchesAgainWhenTheTextChanges(t *testing.T) {
+	m := NewModel(&config.Config{}, false, &api.Client{})
+	m.State = StateCitySelect
+	m.CitySearchQuery = "london"
+	m.CityInput.SetValue("paris")
+	m.CityOptions = londons
+
+	updated, cmd := m.Update(enter)
+
+	assert.Equal(t, StateCitySearch, updated.(Model).State)
+	assert.Equal(t, "paris", updated.(Model).CitySearchQuery)
+	assert.NotNil(t, cmd)
+}
+
+func TestSearchCitiesWithoutAClient(t *testing.T) {
+	m := NewModel(&config.Config{}, false, nil)
+	m.CitySearchQuery = "London"
+
+	result := m.searchCities()().(CitiesSearchResult)
+
+	assert.ErrorContains(t, result.err, "API client not initialized")
+}
+
+func TestPreferencesTabMovesTheFocus(t *testing.T) {
+	m := NewModel(&config.Config{}, false, &api.Client{})
+	m.State = StatePreferences
+
+	updated, _ := m.Update(tab)
+	assert.Equal(t, GroupView, updated.(Model).PrefGroup)
+	updated, _ = updated.Update(tab)
+	updated, _ = updated.Update(tab)
+	assert.Equal(t, GroupUnits, updated.(Model).PrefGroup)
+	updated, _ = updated.Update(tea.KeyPressMsg{Code: tea.KeyTab, Mod: tea.ModShift})
+	assert.Equal(t, GroupTips, updated.(Model).PrefGroup)
+}
+
+func TestPreferencesArrowsChangeTheFocusedGroup(t *testing.T) {
+	m := NewModel(&config.Config{}, false, &api.Client{})
+	m.State = StatePreferences
+	m.PrefGroup = GroupView
+
+	updated, _ := m.Update(down)
+	updated, _ = updated.Update(down)
+	updated, _ = updated.Update(down)
+	updated, _ = updated.Update(down)
+
+	assert.Equal(t, 3, updated.(Model).ViewCursor)
+	assert.Equal(t, 0, updated.(Model).UnitCursor)
+}
+
+func TestPreferencesEnterSavesTheChoices(t *testing.T) {
+	cfg := &config.Config{}
+	m := NewModel(cfg, false, &api.Client{})
+	m.State = StatePreferences
+	m.UnitCursor, m.ViewCursor, m.TipCursor = 1, 2, 1
+
+	updated, _ := m.Update(enter)
+
+	assert.Equal(t, StateApiKeyOption, updated.(Model).State)
+	assert.Equal(t, "imperial", cfg.Units)
+	assert.Equal(t, "daily", cfg.DefaultView)
+	assert.False(t, cfg.ShowTips)
+}
+
+func TestPreferencesEscGoesBack(t *testing.T) {
+	m := NewModel(&config.Config{}, false, &api.Client{})
+	m.State = StatePreferences
+
+	updated, _ := m.Update(esc)
+
+	assert.Equal(t, StateCity, updated.(Model).State)
+}
+
+func TestSignInWithGitHub(t *testing.T) {
 	tests := []struct {
 		name       string
-		state      SetupState
-		setupModel func() Model
-		key        tea.KeyPressMsg
-		checkFunc  func(*testing.T, Model)
+		needsAuth  bool
+		wantGitHub bool
 	}{
-		{
-			name:  "units cursor up",
-			state: StateUnits,
-			setupModel: func() Model {
-				m := NewModel(&config.Config{}, false, &api.Client{})
-				m.UnitCursor = 1
-				return m
-			},
-			key: tea.KeyPressMsg{Code: tea.KeyUp},
-			checkFunc: func(t *testing.T, m Model) {
-				assert.Equal(t, 0, m.UnitCursor)
-			},
-		},
-		{
-			name:  "units cursor down",
-			state: StateUnits,
-			setupModel: func() Model {
-				m := NewModel(&config.Config{}, false, &api.Client{})
-				m.UnitCursor = 0
-				return m
-			},
-			key: tea.KeyPressMsg{Code: tea.KeyDown},
-			checkFunc: func(t *testing.T, m Model) {
-				assert.Equal(t, 1, m.UnitCursor)
-			},
-		},
-		{
-			name:  "units cursor upper bound",
-			state: StateUnits,
-			setupModel: func() Model {
-				m := NewModel(&config.Config{}, false, &api.Client{})
-				m.UnitCursor = 0
-				return m
-			},
-			key: tea.KeyPressMsg{Code: tea.KeyUp},
-			checkFunc: func(t *testing.T, m Model) {
-				assert.Equal(t, 0, m.UnitCursor, "cursor shouldn't go below 0")
-			},
-		},
-		{
-			name:  "units cursor lower bound",
-			state: StateUnits,
-			setupModel: func() Model {
-				m := NewModel(&config.Config{}, false, &api.Client{})
-				m.UnitCursor = 2 // Last option
-				return m
-			},
-			key: tea.KeyPressMsg{Code: tea.KeyDown},
-			checkFunc: func(t *testing.T, m Model) {
-				assert.Equal(t, 2, m.UnitCursor, "cursor shouldn't exceed options length")
-			},
-		},
-		{
-			name:  "view cursor movement",
-			state: StateView,
-			setupModel: func() Model {
-				m := NewModel(&config.Config{}, false, &api.Client{})
-				m.ViewCursor = 1
-				return m
-			},
-			key: tea.KeyPressMsg{Code: tea.KeyDown},
-			checkFunc: func(t *testing.T, m Model) {
-				assert.Equal(t, 2, m.ViewCursor)
-			},
-		},
-		{
-			name:  "city cursor movement",
-			state: StateCitySelect,
-			setupModel: func() Model {
-				m := NewModel(&config.Config{}, false, &api.Client{})
-				m.CityOptions = []models.City{
-					{Name: "London"},
-					{Name: "Paris"},
-					{Name: "Berlin"},
-				}
-				m.CityCursor = 0
-				return m
-			},
-			key: tea.KeyPressMsg{Code: tea.KeyDown},
-			checkFunc: func(t *testing.T, m Model) {
-				assert.Equal(t, 1, m.CityCursor)
-			},
-		},
+		{"signs in when there is no key", true, true},
+		{"keeps the key when there is one", false, false},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			model := tt.setupModel()
-			model.State = tt.state
-			updatedModel, _ := model.Update(tt.key)
-			updated := updatedModel.(Model)
-			tt.checkFunc(t, updated)
+			m := NewModel(&config.Config{}, tt.needsAuth, &api.Client{})
+			m.State = StateApiKeyOption
+
+			updated, _ := m.Update(enter)
+
+			assert.Equal(t, StateComplete, updated.(Model).State)
+			assert.Equal(t, tt.wantGitHub, updated.(Model).WantsGitHub)
 		})
 	}
 }
 
-func TestTextInputHandling(t *testing.T) {
-	t.Run("enter with value transitions to search", func(t *testing.T) {
-		m := NewModel(&config.Config{}, false, &api.Client{})
-		m.State = StateCity
-		m.CityInput.SetValue("London")
+func TestSignInWithOwnKeyOpensTheKeyInput(t *testing.T) {
+	m := NewModel(&config.Config{}, true, &api.Client{})
+	m.State = StateApiKeyOption
 
-		updatedModel, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
-		updated := updatedModel.(Model)
+	updated, _ := m.Update(down)
+	updated, _ = updated.Update(enter)
 
-		assert.Equal(t, StateCitySearch, updated.State)
-		assert.Equal(t, "London", updated.CitySearchQuery)
-		assert.NotNil(t, cmd)
-	})
-
-	t.Run("enter with empty value stays in city state", func(t *testing.T) {
-		m := NewModel(&config.Config{}, false, &api.Client{})
-		m.State = StateCity
-		m.CityInput.SetValue("")
-
-		updatedModel, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
-		updated := updatedModel.(Model)
-
-		assert.Equal(t, StateCity, updated.State)
-	})
-
-	t.Run("text input updates correctly", func(t *testing.T) {
-		m := NewModel(&config.Config{}, false, &api.Client{})
-		m.State = StateCity
-
-		// Type a character
-		updatedModel, cmd := m.Update(tea.KeyPressMsg{Code: 'L', Text: "L"})
-		updated := updatedModel.(Model)
-
-		assert.Equal(t, StateCity, updated.State)
-		assert.Equal(t, "L", updated.CityInput.Value())
-		assert.NotNil(t, cmd)
-	})
-
-	t.Run("ctrl+c quits", func(t *testing.T) {
-		m := NewModel(&config.Config{}, false, &api.Client{})
-		m.State = StateCity
-
-		updatedModel, cmd := m.Update(tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl})
-		updated := updatedModel.(Model)
-
-		assert.True(t, updated.Quitting)
-		assert.NotNil(t, cmd)
-	})
+	assert.Equal(t, StateApiKeyInput, updated.(Model).State)
+	assert.True(t, updated.(Model).ApiKeyInput.Focused())
 }
 
-func TestMiscUpdateHandling(t *testing.T) {
-	t.Run("unknown message passes through", func(t *testing.T) {
+func TestApiKeyInputSavesTheKey(t *testing.T) {
+	m := NewModel(&config.Config{ApiUrl: "http://localhost:8080"}, true, &api.Client{})
+	m.State = StateApiKeyInput
+	m.ApiKeyCursor = 1
+	m.ApiKeyInput.SetValue("abcd1234")
+
+	updated, _ := m.Update(enter)
+	saved, err := config.LoadAuthConfig()
+
+	assert.Equal(t, StateComplete, updated.(Model).State)
+	assert.False(t, updated.(Model).NeedsAuth)
+	assert.NoError(t, err)
+	assert.Equal(t, "abcd1234", saved.APIKey)
+}
+
+func TestApiKeyInputIgnoresAnEmptyKey(t *testing.T) {
+	m := NewModel(&config.Config{}, true, &api.Client{})
+	m.State = StateApiKeyInput
+
+	updated, _ := m.Update(enter)
+
+	assert.Equal(t, StateApiKeyInput, updated.(Model).State)
+}
+
+func TestCompleteEnterQuits(t *testing.T) {
+	m := NewModel(&config.Config{}, false, &api.Client{})
+	m.State = StateComplete
+
+	_, cmd := m.Update(enter)
+
+	assert.Equal(t, tea.QuitMsg{}, cmd())
+}
+
+func TestCompleteEscGoesBack(t *testing.T) {
+	m := NewModel(&config.Config{}, true, &api.Client{})
+	m.State = StateComplete
+	m.WantsGitHub = true
+
+	updated, _ := m.Update(esc)
+
+	assert.Equal(t, StateApiKeyOption, updated.(Model).State)
+	assert.False(t, updated.(Model).WantsGitHub)
+}
+
+func TestCtrlCQuitsFromAnyStep(t *testing.T) {
+	for _, state := range []SetupState{StateCity, StatePreferences, StateApiKeyInput, StateComplete} {
 		m := NewModel(&config.Config{}, false, &api.Client{})
+		m.State = state
 
-		// Create a custom message type
-		type customMsg struct{}
+		updated, cmd := m.Update(tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl})
 
-		updatedModel, cmd := m.Update(customMsg{})
-		updated := updatedModel.(Model)
-
-		// Model should remain unchanged
-		assert.Equal(t, m.State, updated.State)
-		assert.Nil(t, cmd)
-	})
+		assert.True(t, updated.(Model).Quitting)
+		assert.Equal(t, tea.QuitMsg{}, cmd())
+	}
 }
