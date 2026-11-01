@@ -8,6 +8,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/josephburgess/gust/internal/api"
+	"github.com/josephburgess/gust/internal/config"
 	"github.com/josephburgess/gust/internal/models"
 	"github.com/stretchr/testify/assert"
 )
@@ -80,7 +81,7 @@ var (
 )
 
 func TestNowView(t *testing.T) {
-	m := NewModel("London", "metric", true, TabNow, nil)
+	m := NewModel("London", &config.Config{Units: "metric", ShowTips: true}, TabNow, nil)
 	m.now = func() time.Time { return fixtureNow }
 	updated, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 36})
 	updated, _ = updated.Update(splashMinMsg{})
@@ -114,7 +115,7 @@ func TestNowView(t *testing.T) {
 }
 
 func TestNowViewHidesTipWhenTipsAreOff(t *testing.T) {
-	m := NewModel("London", "metric", false, TabNow, nil)
+	m := NewModel("London", &config.Config{Units: "metric", ShowTips: false}, TabNow, nil)
 	m.now = func() time.Time { return fixtureNow }
 	updated, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 36})
 	updated, _ = updated.Update(splashMinMsg{})
@@ -127,7 +128,7 @@ func TestAlertsBadge(t *testing.T) {
 	withAlert := *fixtureWeather
 	withAlert.Alerts = []models.Alert{fixtureAlert}
 
-	m := NewModel("London", "metric", true, TabNow, nil)
+	m := NewModel("London", &config.Config{Units: "metric", ShowTips: true}, TabNow, nil)
 	m.now = func() time.Time { return fixtureNow }
 	updated, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 36})
 	updated, _ = updated.Update(splashMinMsg{})
@@ -137,7 +138,7 @@ func TestAlertsBadge(t *testing.T) {
 }
 
 func TestSplashShowsWhileLoading(t *testing.T) {
-	m := NewModel("London", "metric", true, TabNow, nil)
+	m := NewModel("London", &config.Config{Units: "metric", ShowTips: true}, TabNow, nil)
 	updated, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 36})
 	updated, _ = updated.Update(splashMinMsg{})
 
@@ -145,7 +146,7 @@ func TestSplashShowsWhileLoading(t *testing.T) {
 }
 
 func TestSplashShowsFetchErrors(t *testing.T) {
-	m := NewModel("London", "metric", true, TabNow, nil)
+	m := NewModel("London", &config.Config{Units: "metric", ShowTips: true}, TabNow, nil)
 	updated, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 36})
 	updated, _ = updated.Update(splashMinMsg{})
 	updated, cmd := updated.Update(weatherMsg{err: errors.New("rate limit exceeded")})
@@ -155,11 +156,11 @@ func TestSplashShowsFetchErrors(t *testing.T) {
 	assert.Nil(t, cmd)
 	assert.Equal(t, screenSplash, updated.(Model).screen)
 	assert.Contains(t, view, "rate limit exceeded")
-	assert.Contains(t, view, "r retry · c city · q quit")
+	assert.Contains(t, view, "r retry · c city · s settings · q quit")
 }
 
 func TestSplashRetryFetchesAgain(t *testing.T) {
-	m := NewModel("London", "metric", true, TabNow, nil)
+	m := NewModel("London", &config.Config{Units: "metric", ShowTips: true}, TabNow, nil)
 	updated, _ := m.Update(weatherMsg{err: errors.New("rate limit exceeded")})
 	updated, cmd := updated.Update(tea.KeyPressMsg{Code: 'r', Text: "r"})
 
@@ -169,7 +170,7 @@ func TestSplashRetryFetchesAgain(t *testing.T) {
 }
 
 func TestSplashWaitsForTheWeatherAndTheMinimumTime(t *testing.T) {
-	m := NewModel("London", "metric", true, TabNow, nil)
+	m := NewModel("London", &config.Config{Units: "metric", ShowTips: true}, TabNow, nil)
 	updated, _ := m.Update(weatherMsg{resp: &api.WeatherResponse{City: fixtureCity, Weather: fixtureWeather}})
 
 	assert.Equal(t, screenSplash, updated.(Model).screen)
@@ -180,7 +181,7 @@ func TestSplashWaitsForTheWeatherAndTheMinimumTime(t *testing.T) {
 }
 
 func TestSplashIgnoresAnOldTimer(t *testing.T) {
-	m := NewModel("London", "metric", true, TabNow, nil)
+	m := NewModel("London", &config.Config{Units: "metric", ShowTips: true}, TabNow, nil)
 	m.splashSeq = 2
 	updated, _ := m.Update(weatherMsg{resp: &api.WeatherResponse{City: fixtureCity, Weather: fixtureWeather}})
 	updated, _ = updated.Update(splashMinMsg{seq: 1})
@@ -189,8 +190,8 @@ func TestSplashIgnoresAnOldTimer(t *testing.T) {
 }
 
 func TestSplashView(t *testing.T) {
-	m := NewModel("London", "metric", true, TabNow, nil)
-	m.via = "your key"
+	m := NewModel("London", &config.Config{Units: "metric", ShowTips: true}, TabNow, nil)
+	m.auth = &config.AuthConfig{APIKey: "abcd1234"}
 	updated, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 36})
 	view := ansi.Strip(updated.View().Content)
 
@@ -221,7 +222,7 @@ func TestTabKeys(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			m := NewModel("London", "metric", true, tt.start, nil)
+			m := NewModel("London", &config.Config{Units: "metric", ShowTips: true}, tt.start, nil)
 			m.screen = screenMain
 			updated, _ := m.Update(tt.key)
 			assert.Equal(t, tt.want, updated.(Model).tab)
@@ -250,7 +251,7 @@ func TestTabFromView(t *testing.T) {
 }
 
 func TestHourlyView(t *testing.T) {
-	m := NewModel("London", "metric", true, TabHourly, nil)
+	m := NewModel("London", &config.Config{Units: "metric", ShowTips: true}, TabHourly, nil)
 	m.now = func() time.Time { return fixtureNow }
 	updated, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 36})
 	updated, _ = updated.Update(splashMinMsg{})
@@ -273,7 +274,7 @@ func TestHourlyView(t *testing.T) {
 }
 
 func TestHourlyCursorScrollsOnShortTerminals(t *testing.T) {
-	m := NewModel("London", "metric", true, TabHourly, nil)
+	m := NewModel("London", &config.Config{Units: "metric", ShowTips: true}, TabHourly, nil)
 	m.now = func() time.Time { return fixtureNow }
 	updated, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 12})
 	updated, _ = updated.Update(splashMinMsg{})
@@ -290,7 +291,7 @@ func TestHourlyCursorScrollsOnShortTerminals(t *testing.T) {
 }
 
 func TestHourlyCursorStopsAtTheEnds(t *testing.T) {
-	m := NewModel("London", "metric", true, TabHourly, nil)
+	m := NewModel("London", &config.Config{Units: "metric", ShowTips: true}, TabHourly, nil)
 	updated, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 36})
 	updated, _ = updated.Update(splashMinMsg{})
 	updated, _ = updated.Update(weatherMsg{resp: &api.WeatherResponse{City: fixtureCity, Weather: fixtureWeather}})
@@ -300,7 +301,7 @@ func TestHourlyCursorStopsAtTheEnds(t *testing.T) {
 }
 
 func TestDailyView(t *testing.T) {
-	m := NewModel("London", "metric", true, TabDaily, nil)
+	m := NewModel("London", &config.Config{Units: "metric", ShowTips: true}, TabDaily, nil)
 	m.now = func() time.Time { return fixtureNow }
 	updated, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 36})
 	updated, _ = updated.Update(splashMinMsg{})
@@ -329,7 +330,7 @@ func TestDailyView(t *testing.T) {
 }
 
 func TestDailyCursorMovesTheDetailBox(t *testing.T) {
-	m := NewModel("London", "metric", true, TabDaily, nil)
+	m := NewModel("London", &config.Config{Units: "metric", ShowTips: true}, TabDaily, nil)
 	updated, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 36})
 	updated, _ = updated.Update(splashMinMsg{})
 	updated, _ = updated.Update(weatherMsg{resp: &api.WeatherResponse{City: fixtureCity, Weather: fixtureWeather}})
@@ -351,7 +352,7 @@ func TestAlertsView(t *testing.T) {
 		Description: "Strong winds may cause some disruption.",
 	}}
 
-	m := NewModel("London", "metric", true, TabAlerts, nil)
+	m := NewModel("London", &config.Config{Units: "metric", ShowTips: true}, TabAlerts, nil)
 	updated, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 36})
 	updated, _ = updated.Update(splashMinMsg{})
 	updated, _ = updated.Update(weatherMsg{resp: &api.WeatherResponse{City: fixtureCity, Weather: &withAlert}})
@@ -364,7 +365,7 @@ func TestAlertsView(t *testing.T) {
 }
 
 func TestAlertsViewWithNoAlerts(t *testing.T) {
-	m := NewModel("London", "metric", true, TabAlerts, nil)
+	m := NewModel("London", &config.Config{Units: "metric", ShowTips: true}, TabAlerts, nil)
 	updated, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 36})
 	updated, _ = updated.Update(splashMinMsg{})
 	updated, _ = updated.Update(weatherMsg{resp: &api.WeatherResponse{City: fixtureCity, Weather: fixtureWeather}})
@@ -378,7 +379,7 @@ func TestCityPromptRefetchesTheNewCity(t *testing.T) {
 		fetched = append(fetched, city)
 		return &api.WeatherResponse{City: &models.City{Name: "Paris", Country: "FR"}, Weather: fixtureWeather}, nil
 	}
-	m := NewModel("London", "metric", true, TabNow, fetch)
+	m := NewModel("London", &config.Config{Units: "metric", ShowTips: true}, TabNow, fetch)
 	updated, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 36})
 	updated, _ = updated.Update(splashMinMsg{})
 	updated, _ = updated.Update(weatherMsg{resp: &api.WeatherResponse{City: fixtureCity, Weather: fixtureWeather}})
@@ -403,7 +404,7 @@ func TestCityPromptRefetchesTheNewCity(t *testing.T) {
 }
 
 func TestCityPromptEscCancels(t *testing.T) {
-	m := NewModel("London", "metric", true, TabNow, nil)
+	m := NewModel("London", &config.Config{Units: "metric", ShowTips: true}, TabNow, nil)
 	m.screen = screenMain
 	updated, _ := m.Update(tea.KeyPressMsg{Code: 'c', Text: "c"})
 	updated, cmd := updated.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
@@ -419,7 +420,7 @@ func TestUnitsKeyCyclesAndRefetches(t *testing.T) {
 		fetchedUnits = append(fetchedUnits, units)
 		return &api.WeatherResponse{City: fixtureCity, Weather: fixtureWeather}, nil
 	}
-	m := NewModel("London", "metric", true, TabNow, fetch)
+	m := NewModel("London", &config.Config{Units: "metric", ShowTips: true}, TabNow, fetch)
 	updated, _ := m.Update(splashMinMsg{})
 	updated, _ = updated.Update(weatherMsg{resp: &api.WeatherResponse{City: fixtureCity, Weather: fixtureWeather}})
 
@@ -439,7 +440,7 @@ func TestNextUnits(t *testing.T) {
 }
 
 func TestRefreshKeepsTheWeatherAndSpinsInTheKeyBar(t *testing.T) {
-	m := NewModel("London", "metric", true, TabNow, nil)
+	m := NewModel("London", &config.Config{Units: "metric", ShowTips: true}, TabNow, nil)
 	updated, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 36})
 	updated, _ = updated.Update(splashMinMsg{})
 	updated, _ = updated.Update(weatherMsg{resp: &api.WeatherResponse{City: fixtureCity, Weather: fixtureWeather}})
@@ -453,7 +454,7 @@ func TestRefreshKeepsTheWeatherAndSpinsInTheKeyBar(t *testing.T) {
 }
 
 func TestRefreshErrorShowsInTheKeyBar(t *testing.T) {
-	m := NewModel("London", "metric", true, TabNow, nil)
+	m := NewModel("London", &config.Config{Units: "metric", ShowTips: true}, TabNow, nil)
 	updated, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 36})
 	updated, _ = updated.Update(splashMinMsg{})
 	updated, _ = updated.Update(weatherMsg{resp: &api.WeatherResponse{City: fixtureCity, Weather: fixtureWeather}})
@@ -468,7 +469,7 @@ func TestRefreshErrorShowsInTheKeyBar(t *testing.T) {
 }
 
 func TestHelpKeyTogglesTheHelp(t *testing.T) {
-	m := NewModel("London", "metric", true, TabNow, nil)
+	m := NewModel("London", &config.Config{Units: "metric", ShowTips: true}, TabNow, nil)
 	updated, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 36})
 	updated, _ = updated.Update(splashMinMsg{})
 	updated, _ = updated.Update(weatherMsg{resp: &api.WeatherResponse{City: fixtureCity, Weather: fixtureWeather}})
@@ -497,7 +498,7 @@ func TestNowViewBreakpoints(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			m := NewModel("London", "metric", true, TabNow, nil)
+			m := NewModel("London", &config.Config{Units: "metric", ShowTips: true}, TabNow, nil)
 			updated, _ := m.Update(tea.WindowSizeMsg{Width: tt.width, Height: tt.height})
 			updated, _ = updated.Update(splashMinMsg{})
 			updated, _ = updated.Update(weatherMsg{resp: &api.WeatherResponse{City: fixtureCity, Weather: fixtureWeather}})
@@ -514,7 +515,7 @@ func TestNowViewBreakpoints(t *testing.T) {
 }
 
 func TestHourlyViewDropsTheBarsWhenNarrow(t *testing.T) {
-	m := NewModel("London", "metric", true, TabHourly, nil)
+	m := NewModel("London", &config.Config{Units: "metric", ShowTips: true}, TabHourly, nil)
 	updated, _ := m.Update(tea.WindowSizeMsg{Width: 70, Height: 36})
 	updated, _ = updated.Update(splashMinMsg{})
 	updated, _ = updated.Update(weatherMsg{resp: &api.WeatherResponse{City: fixtureCity, Weather: fixtureWeather}})

@@ -126,7 +126,7 @@ func coldNight(units string) float64 {
 
 // dailyTip names the driest day, plus the coldest night when it is near freezing.
 func (m Model) dailyTip() string {
-	if !m.showTips {
+	if !m.cfg.ShowTips {
 		return ""
 	}
 	days := m.days()

@@ -8,18 +8,19 @@ import (
 )
 
 var keys = struct {
-	Tabs, Next, Prev, Down, Up, City, Units, Refresh, Help, Quit key.Binding
+	Tabs, Next, Prev, Down, Up, City, Units, Refresh, Settings, Help, Quit key.Binding
 }{
-	Tabs:    key.NewBinding(key.WithKeys("1", "2", "3", "4"), key.WithHelp("1-4", "tabs")),
-	Next:    key.NewBinding(key.WithKeys("tab"), key.WithHelp("tab", "next tab")),
-	Prev:    key.NewBinding(key.WithKeys("shift+tab"), key.WithHelp("shift+tab", "previous tab")),
-	Down:    key.NewBinding(key.WithKeys("j", "down"), key.WithHelp("j/↓", "down")),
-	Up:      key.NewBinding(key.WithKeys("k", "up"), key.WithHelp("k/↑", "up")),
-	City:    key.NewBinding(key.WithKeys("c"), key.WithHelp("c", "city")),
-	Units:   key.NewBinding(key.WithKeys("u"), key.WithHelp("u", "units")),
-	Refresh: key.NewBinding(key.WithKeys("r"), key.WithHelp("r", "refresh")),
-	Help:    key.NewBinding(key.WithKeys("?"), key.WithHelp("?", "help")),
-	Quit:    key.NewBinding(key.WithKeys("q", "ctrl+c"), key.WithHelp("q", "quit")),
+	Tabs:     key.NewBinding(key.WithKeys("1", "2", "3", "4"), key.WithHelp("1-4", "tabs")),
+	Next:     key.NewBinding(key.WithKeys("tab"), key.WithHelp("tab", "next tab")),
+	Prev:     key.NewBinding(key.WithKeys("shift+tab"), key.WithHelp("shift+tab", "previous tab")),
+	Down:     key.NewBinding(key.WithKeys("j", "down"), key.WithHelp("j/↓", "down")),
+	Up:       key.NewBinding(key.WithKeys("k", "up"), key.WithHelp("k/↑", "up")),
+	City:     key.NewBinding(key.WithKeys("c"), key.WithHelp("c", "city")),
+	Units:    key.NewBinding(key.WithKeys("u"), key.WithHelp("u", "units")),
+	Refresh:  key.NewBinding(key.WithKeys("r"), key.WithHelp("r", "refresh")),
+	Settings: key.NewBinding(key.WithKeys("s"), key.WithHelp("s", "settings")),
+	Help:     key.NewBinding(key.WithKeys("?"), key.WithHelp("?", "help")),
+	Quit:     key.NewBinding(key.WithKeys("q", "ctrl+c"), key.WithHelp("q", "quit")),
 }
 
 func helpView() string {
@@ -30,7 +31,7 @@ func helpView() string {
 	return h.FullHelpView([][]key.Binding{
 		{keys.Tabs, keys.Next, keys.Prev},
 		{keys.Down, keys.Up},
-		{keys.City, keys.Units, keys.Refresh},
+		{keys.City, keys.Units, keys.Refresh, keys.Settings},
 		{keys.Help, keys.Quit},
 	})
 }

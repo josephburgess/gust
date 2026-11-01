@@ -2,7 +2,6 @@ package tui
 
 import (
 	"fmt"
-	"strings"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/josephburgess/gust/internal/api"
@@ -15,11 +14,8 @@ func Run(city string, cfg *config.Config, auth *config.AuthConfig, tab Tab) erro
 		return api.NewClient(cfg.ApiUrl, auth.APIKey, units).GetWeather(city)
 	}
 
-	model := NewModel(city, cfg.Units, cfg.ShowTips, tab, fetch)
-	// breeze keys start with gust_, anything else is the user's own OpenWeatherMap key
-	if !strings.HasPrefix(auth.APIKey, "gust_") {
-		model.via = "your key"
-	}
+	model := NewModel(city, cfg, tab, fetch)
+	model.auth = auth
 	if _, err := tea.NewProgram(model).Run(); err != nil {
 		return fmt.Errorf("error running dashboard: %w", err)
 	}

@@ -7,6 +7,7 @@ import (
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
+	"github.com/josephburgess/gust/internal/config"
 )
 
 const clockInterval = 30 * time.Second
@@ -47,6 +48,17 @@ func (m Model) refetch(clear bool) (Model, tea.Cmd) {
 }
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if m.sub != nil {
+		switch msg.(type) {
+		case weatherMsg, clockMsg, splashMinMsg, streakMsg, githubDoneMsg, editorDoneMsg:
+		default:
+			if size, ok := msg.(tea.WindowSizeMsg); ok {
+				m.width, m.height = size.Width, size.Height
+			}
+			return m.updateSub(msg)
+		}
+	}
+
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
@@ -55,7 +67,27 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.prompting {
 			return m.handlePrompt(msg)
 		}
+		if m.screen == screenSettings {
+			return m.handleSettingsKey(msg)
+		}
 		return m.handleKey(msg)
+	case editorDoneMsg:
+		if msg.err != nil {
+			m.settingsErr = msg.err.Error()
+			return m, nil
+		}
+		if cfg, err := config.Load(); err == nil {
+			*m.cfg = *cfg
+			m.units = cfg.Units
+		}
+		return m.refetch(false)
+	case githubDoneMsg:
+		if msg.err != nil {
+			m.settingsErr = msg.err.Error()
+			return m, nil
+		}
+		*m.auth = *msg.auth
+		return m.refetch(false)
 	case weatherMsg:
 		m.loading = false
 		m.err = msg.err
@@ -126,6 +158,8 @@ func (m Model) handleSplashKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.prompting = true
 		m.cityInput.Reset()
 		return m, m.cityInput.Focus()
+	case m.err != nil && key.Matches(msg, keys.Settings):
+		return m.openSettings(), nil
 	}
 	return m, nil
 }
@@ -161,6 +195,8 @@ func (m Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m.refetch(true)
 	case key.Matches(msg, keys.Refresh):
 		return m.refetch(false)
+	case key.Matches(msg, keys.Settings):
+		return m.openSettings(), nil
 	case key.Matches(msg, keys.Help):
 		m.showHelp = !m.showHelp
 	}

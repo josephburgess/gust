@@ -15,6 +15,7 @@ type screen int
 const (
 	screenSplash screen = iota
 	screenMain
+	screenSettings
 )
 
 const (
@@ -71,7 +72,7 @@ func (m Model) splashView() string {
 	status := m.spinner.View() + " " + fg(styles.Subtle).Render("fetching "+m.cityLabel()+"…")
 	if m.err != nil {
 		status = fg(styles.Love).Render(m.err.Error()) + "\n\n" +
-			fg(styles.Subtle).Render("r retry · c city · q quit")
+			fg(styles.Subtle).Render("r retry · c city · s settings · q quit")
 	}
 
 	content := lipgloss.JoinVertical(lipgloss.Center,
@@ -88,7 +89,7 @@ func (m Model) splashView() string {
 
 func (m Model) splashKeyHints() []keyHint {
 	if m.err != nil {
-		return []keyHint{{"r", "retry"}, {"c", "city"}, {"q", "quit"}}
+		return []keyHint{{"r", "retry"}, {"c", "city"}, {"s", "settings"}, {"q", "quit"}}
 	}
 	return []keyHint{{"q", "cancel"}}
 }

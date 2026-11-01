@@ -240,7 +240,7 @@ func (m Model) next12(width int) string {
 
 // tipLine is the weather tip without its emoji, or "" when tips are off.
 func (m Model) tipLine() string {
-	if !m.showTips {
+	if !m.cfg.ShowTips {
 		return ""
 	}
 	tip := models.GetWeatherTip(m.weather, m.units)

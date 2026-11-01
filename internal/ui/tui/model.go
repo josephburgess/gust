@@ -1,13 +1,16 @@
 package tui
 
 import (
+	"strings"
 	"time"
 
 	"charm.land/bubbles/v2/spinner"
 	"charm.land/bubbles/v2/textinput"
 	"charm.land/lipgloss/v2"
 	"github.com/josephburgess/gust/internal/api"
+	"github.com/josephburgess/gust/internal/config"
 	"github.com/josephburgess/gust/internal/models"
+	"github.com/josephburgess/gust/internal/ui/setup"
 	"github.com/josephburgess/gust/internal/ui/styles"
 )
 
@@ -50,8 +53,6 @@ type Model struct {
 	splashSeq     int
 	splashMinDone bool
 	streakFrame   int
-	// via names the weather source in the splash key bar
-	via string
 
 	tab        Tab
 	hourCursor int
@@ -60,9 +61,12 @@ type Model struct {
 	width      int
 	height     int
 	city       string
-	units      string
-	showTips   bool
-	fetch      FetchFunc
+	// units is the session units: u changes it without a save
+	units string
+	cfg   *config.Config
+	// auth is shared with the runner's fetch, so a new key takes effect on the next fetch
+	auth  *config.AuthConfig
+	fetch FetchFunc
 
 	location  *models.City
 	weather   *models.OneCallResponse
@@ -75,9 +79,14 @@ type Model struct {
 	prompting bool
 	showHelp  bool
 	now       func() time.Time
+
+	settingsCursor int
+	settingsErr    string
+	sub            *setup.Model
+	subKind        subView
 }
 
-func NewModel(city, units string, showTips bool, tab Tab, fetch FetchFunc) Model {
+func NewModel(city string, cfg *config.Config, tab Tab, fetch FetchFunc) Model {
 	s := spinner.New(spinner.WithSpinner(spinner.Dot))
 	s.Style = lipgloss.NewStyle().Foreground(styles.Gold)
 
@@ -93,11 +102,11 @@ func NewModel(city, units string, showTips bool, tab Tab, fetch FetchFunc) Model
 
 	return Model{
 		screen:    screenSplash,
-		via:       "breeze",
 		tab:       tab,
 		city:      city,
-		units:     units,
-		showTips:  showTips,
+		units:     cfg.Units,
+		cfg:       cfg,
+		auth:      &config.AuthConfig{},
 		fetch:     fetch,
 		loading:   true,
 		spinner:   s,
@@ -115,4 +124,16 @@ func (m Model) cityLabel() string {
 		return m.location.Name
 	}
 	return m.location.Name + ", " + m.location.Country
+}
+
+// ownKey is true when the auth holds the user's own OpenWeatherMap key. Breeze keys start with gust_.
+func (m Model) ownKey() bool {
+	return m.auth.APIKey != "" && !strings.HasPrefix(m.auth.APIKey, "gust_")
+}
+
+func (m Model) via() string {
+	if m.ownKey() {
+		return "your key"
+	}
+	return "breeze"
 }
