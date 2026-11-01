@@ -11,7 +11,7 @@ import (
 
 func TestRunMissingCity(t *testing.T) {
 	testFunc := func(cli *CLI, cfg *config.Config) error {
-		city := determineCityName(cli.City, cli.Args, cfg.DefaultCity)
+		city := determineCityName(cli.Args, cfg.DefaultCity)
 		if city == "" {
 			return handleMissingCity()
 		}
@@ -29,12 +29,6 @@ func TestRunMissingCity(t *testing.T) {
 			cli:         &CLI{},
 			defaultCity: "",
 			expectError: true,
-		},
-		{
-			name:        "city provided through flag",
-			cli:         &CLI{City: "London"},
-			defaultCity: "",
-			expectError: false,
 		},
 		{
 			name:        "city provided through args",
@@ -160,7 +154,7 @@ func createRunWithDeps() func(
 			return handleMissingAuth()
 		}
 
-		city := determineCityName(cli.City, cli.Args, cfg.DefaultCity)
+		city := determineCityName(cli.Args, cfg.DefaultCity)
 		if city == "" {
 			return handleMissingCity()
 		}

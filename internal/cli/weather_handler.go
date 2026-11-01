@@ -2,20 +2,65 @@ package cli
 
 import (
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
+	"charm.land/bubbles/v2/spinner"
+	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/term"
 	"github.com/josephburgess/gust/internal/api"
 	"github.com/josephburgess/gust/internal/config"
-	"github.com/josephburgess/gust/internal/models"
 	"github.com/josephburgess/gust/internal/ui/components"
 	"github.com/josephburgess/gust/internal/ui/output"
-	"github.com/josephburgess/gust/internal/ui/renderer"
 	"github.com/josephburgess/gust/internal/ui/styles"
 	"github.com/josephburgess/gust/internal/ui/tui"
 )
 
+// printWidth is the layout width when stdout is not a terminal.
+const printWidth = 100
+
+type runMode int
+
+const (
+	modeDashboard runMode = iota
+	modePrint
+	modeCompact
+)
+
+// chooseMode picks the dashboard, print or compact, and the tab.
+// A tab flag wins over opens-on. Print is the default when stdout is not a terminal.
+func chooseMode(cli *CLI, cfg *config.Config, tty bool) (runMode, tui.Tab) {
+	tab, tabFlag := tui.TabFromView(cfg.DefaultView), true
+	switch {
+	case cli.Alerts:
+		tab = tui.TabAlerts
+	case cli.Hourly:
+		tab = tui.TabHourly
+	case cli.Daily:
+		tab = tui.TabDaily
+	case cli.Now:
+		tab = tui.TabNow
+	default:
+		tabFlag = false
+	}
+
+	switch {
+	case cli.Compact, !tabFlag && cfg.DefaultView == "compact":
+		return modeCompact, tab
+	case cli.Print, !tty:
+		return modePrint, tab
+	}
+	return modeDashboard, tab
+}
+
 func fetchAndRenderWeather(city string, cfg *config.Config, authConfig *config.AuthConfig, cli *CLI) error {
+	tty := term.IsTerminal(os.Stdout.Fd())
+	mode, tab := chooseMode(cli, cfg, tty)
+	if mode == modeDashboard {
+		return tui.Run(city, cfg, authConfig, tab)
+	}
+
 	client := api.NewClient(cfg.ApiUrl, authConfig.APIKey, cfg.Units)
 
 	fetchFunc := func() (*api.WeatherResponse, error) {
@@ -29,8 +74,14 @@ func fetchAndRenderWeather(city string, cfg *config.Config, authConfig *config.A
 		return weather, nil
 	}
 
-	message := fmt.Sprintf("Fetching weather for %s...", city)
-	weather, err := components.RunWithSpinner(message, components.WeatherEmojis, styles.Foam, fetchFunc)
+	// the spinner draws on stdout, so it only runs on a terminal
+	var weather *api.WeatherResponse
+	var err error
+	if tty {
+		weather, err = components.RunWithSpinner(fmt.Sprintf("fetching %s…", city), spinner.Dot, styles.Gold, fetchFunc)
+	} else {
+		weather, err = fetchFunc()
+	}
 
 	if client.RateLimitInfo != nil && client.RateLimitInfo.Limit > 0 {
 		if err != nil && strings.Contains(strings.ToLower(err.Error()), "rate limit") {
@@ -66,52 +117,15 @@ func fetchAndRenderWeather(city string, cfg *config.Config, authConfig *config.A
 		return err
 	}
 
-	weatherRenderer := renderer.NewWeatherRenderer("terminal", cfg.Units)
-	renderWeatherView(cli, weatherRenderer, weather.City, weather.Weather, cfg)
+	if mode == modeCompact {
+		lipgloss.Println(tui.Compact(weather.City, weather.Weather, cfg.Units))
+		return nil
+	}
 
+	width := printWidth
+	if w, _, err := term.GetSize(os.Stdout.Fd()); tty && err == nil {
+		width = w
+	}
+	lipgloss.Println(tui.Print(weather.City, weather.Weather, cfg, tab, width))
 	return nil
-}
-
-func renderWeatherView(cli *CLI, weatherRenderer renderer.WeatherRenderer, city *models.City, weather *models.OneCallResponse, cfg *config.Config) {
-	switch {
-	case cli.Alerts:
-		weatherRenderer.RenderAlerts(city, weather, cfg)
-	case cli.Hourly:
-		weatherRenderer.RenderHourlyForecast(city, weather, cfg)
-	case cli.Daily:
-		weatherRenderer.RenderDailyForecast(city, weather, cfg)
-	case cli.Full:
-		weatherRenderer.RenderFullWeather(city, weather, cfg)
-	case cli.Compact:
-		weatherRenderer.RenderCompactWeather(city, weather, cfg)
-	case cli.Detailed:
-		weatherRenderer.RenderCurrentWeather(city, weather, cfg)
-	default:
-		switch cfg.DefaultView {
-		case "compact":
-			weatherRenderer.RenderCompactWeather(city, weather, cfg)
-		case "daily":
-			weatherRenderer.RenderDailyForecast(city, weather, cfg)
-		case "hourly":
-			weatherRenderer.RenderHourlyForecast(city, weather, cfg)
-		case "full":
-			weatherRenderer.RenderFullWeather(city, weather, cfg)
-		default:
-			weatherRenderer.RenderCurrentWeather(city, weather, cfg)
-		}
-	}
-}
-
-// dashboardTab picks the opening tab: a display flag wins, then the configured view.
-func dashboardTab(cli *CLI, cfg *config.Config) tui.Tab {
-	switch {
-	case cli.Alerts:
-		return tui.TabAlerts
-	case cli.Hourly:
-		return tui.TabHourly
-	case cli.Daily:
-		return tui.TabDaily
-	default:
-		return tui.TabFromView(cfg.DefaultView)
-	}
 }

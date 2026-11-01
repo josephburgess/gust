@@ -2,7 +2,6 @@ package components
 
 import (
 	"image/color"
-	"time"
 
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
@@ -50,10 +49,4 @@ func (s SpinnerModel) Update(msg tea.Msg) (SpinnerModel, tea.Cmd) {
 // render
 func (s SpinnerModel) View() string {
 	return s.Spinner.View()
-}
-
-// custom weather spinner
-var WeatherEmojis = spinner.Spinner{
-	Frames: []string{"☀️ ", "⛅️ ", "☁️ ", "🌧️ ", "⛈️ ", "❄️ ", "🌪️ ", "🌈 "},
-	FPS:    time.Second / 5,
 }
