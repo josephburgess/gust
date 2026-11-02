@@ -1,13 +1,10 @@
 package styles
 
 import (
-	"fmt"
 	"log"
 	"os"
-	"strings"
 
 	"charm.land/lipgloss/v2"
-	"github.com/fatih/color"
 )
 
 var (
@@ -28,27 +25,6 @@ var (
 )
 
 var (
-	TitleStyle = lipgloss.NewStyle().
-			Bold(true).
-			Foreground(Rose)
-
-	SubtitleStyle = lipgloss.NewStyle().
-			Foreground(Gold)
-
-	HighlightStyle = lipgloss.NewStyle().
-			Bold(true).
-			Foreground(Text)
-
-	CursorStyle = lipgloss.NewStyle().
-			Foreground(Love)
-
-	SelectedItemStyle = lipgloss.NewStyle().
-				Foreground(Foam)
-
-	HintStyle = lipgloss.NewStyle().
-			Foreground(Subtle).
-			Italic(true)
-
 	BoxStyle = lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
 			BorderForeground(Iris).
@@ -59,28 +35,7 @@ var (
 				Italic(true)
 )
 
-var (
-	HeaderStyle     = color.New(color.FgHiCyan, color.Bold).SprintFunc()
-	TipStyle        = color.New(color.FgHiBlue, color.Italic).SprintFunc()
-	TempStyle       = color.New(color.FgHiYellow, color.Bold).SprintFunc()
-	HighlightStyleF = color.New(color.FgHiWhite).SprintFunc()
-	InfoStyle       = color.New(color.FgHiBlue).SprintFunc()
-	TimeStyle       = color.New(color.FgHiYellow).SprintFunc()
-	AlertStyle      = color.New(color.FgHiRed, color.Bold).SprintFunc()
-	ErrorStyle      = color.New(color.FgHiRed, color.Bold).SprintFunc()
-	SuccessStyle    = color.New(color.FgHiGreen, color.Bold).SprintFunc()
-	WarningStyle    = color.New(color.FgHiYellow).SprintFunc()
-)
-
-func Divider(len int) string {
-	return strings.Repeat("─", len)
-}
-
 func ExitWithError(message string, err error) {
 	log.Printf("%s: %v", message, err)
 	os.Exit(1)
-}
-
-func FormatHeader(title string) string {
-	return fmt.Sprintf("\n%s\n%s\n", HeaderStyle(title), Divider(len(title)*2))
 }
