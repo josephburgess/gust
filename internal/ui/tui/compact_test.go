@@ -42,3 +42,10 @@ func TestCompactWhenDryAllDay(t *testing.T) {
 
 	assert.NotContains(t, ansi.Strip(Compact(fixtureCity, &dry, "metric")), "rain back")
 }
+
+func TestCompactLeavesOutMissingGusts(t *testing.T) {
+	calm := *fixtureWeather
+	calm.Current.WindGust = 0
+
+	assert.NotContains(t, ansi.Strip(Compact(fixtureCity, &calm, "metric")), "gusts")
+}

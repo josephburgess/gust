@@ -1,6 +1,8 @@
 package tui
 
 import (
+	"strings"
+
 	"charm.land/lipgloss/v2"
 	"github.com/josephburgess/gust/internal/config"
 	"github.com/josephburgess/gust/internal/models"
@@ -17,7 +19,13 @@ func Print(city *models.City, w *models.OneCallResponse, cfg *config.Config, tab
 	m.location, m.weather = city, w
 	m.loading = false
 	m.width, m.height = width, printHeight
+	// no hourly row is selected outside the dashboard
+	m.hourCursor = -1
 
 	body := lipgloss.NewStyle().Padding(0, pad).Render(m.body())
-	return lipgloss.JoinVertical(lipgloss.Left, m.header(), body)
+	lines := strings.Split(lipgloss.JoinVertical(lipgloss.Left, m.header(), body), "\n")
+	for i, line := range lines {
+		lines[i] = strings.TrimRight(line, " ")
+	}
+	return strings.TrimRight(strings.Join(lines, "\n"), "\n")
 }

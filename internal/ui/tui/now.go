@@ -124,8 +124,12 @@ func (m Model) windBody(inner int) string {
 	c := m.weather.Current
 	speed := fmt.Sprintf("%d %s ", deg(windSpeed(c.WindSpeed, m.units)), windUnit(m.units)) +
 		fg(styles.Iris).Render(models.GetWindArrow(c.WindDeg)) + " " + models.GetWindDirection(c.WindDeg)
-	gusts := fg(styles.Love).Render(fmt.Sprintf("gusts %d", deg(windSpeed(c.WindGust, m.units))))
-	bar := fg(styles.Love).Render(widgets.Bar(kmh(c.WindGust, m.units), gustScale, inner))
+	// the API leaves wind_gust out on calm days
+	gusts := fg(styles.Subtle).Render("no gusts")
+	if c.WindGust > 0 {
+		gusts = fg(styles.Love).Render(fmt.Sprintf("gusts %d", deg(windSpeed(c.WindGust, m.units))))
+	}
+	bar := fg(styles.Love).Render(widgets.Bar(kmh(max(c.WindGust, c.WindSpeed), m.units), gustScale, inner))
 	return strings.Join([]string{speed, gusts, bar}, "\n")
 }
 

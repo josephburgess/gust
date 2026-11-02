@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/charmbracelet/x/ansi"
@@ -32,5 +33,14 @@ func TestPrint(t *testing.T) {
 				assert.NotContains(t, got, notWanted)
 			}
 		})
+	}
+}
+
+func TestPrintHasNoCursorOrTrailingSpaces(t *testing.T) {
+	got := ansi.Strip(Print(fixtureCity, fixtureWeather, &config.Config{Units: "metric"}, TabHourly, 120))
+
+	assert.NotContains(t, got, "▸")
+	for _, line := range strings.Split(got, "\n") {
+		assert.Equal(t, strings.TrimRight(line, " "), line)
 	}
 }

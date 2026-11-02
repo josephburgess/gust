@@ -32,8 +32,11 @@ func Compact(city *models.City, w *models.OneCallResponse, units string) string 
 	if len(w.Daily) > 0 {
 		first = append(first, subtle.Render(fmt.Sprintf("↑%d° ↓%d°", deg(w.Daily[0].Temp.Max), deg(w.Daily[0].Temp.Min))))
 	}
-	first = append(first, subtle.Render(fmt.Sprintf("%s %d %s ", models.GetWindArrow(c.WindDeg), deg(windSpeed(c.WindSpeed, units)), windUnit(units)))+
-		fg(styles.Love).Render(fmt.Sprintf("gusts %d", deg(windSpeed(c.WindGust, units)))))
+	wind := subtle.Render(fmt.Sprintf("%s %d %s", models.GetWindArrow(c.WindDeg), deg(windSpeed(c.WindSpeed, units)), windUnit(units)))
+	if c.WindGust > 0 {
+		wind += fg(styles.Love).Render(fmt.Sprintf(" gusts %d", deg(windSpeed(c.WindGust, units))))
+	}
+	first = append(first, wind)
 
 	if len(hours) > 0 {
 		rain := subtle.Render(fmt.Sprintf("☂ %d%%", deg(hours[0].Pop*100)))
