@@ -153,7 +153,6 @@ var (
 )
 
 // Icon returns 5 styled lines of weather art, each IconWidth cells wide.
-// It uses the same condition ID ranges as models.GetWeatherEmoji.
 func Icon(id int, night bool) []string {
 	var name string
 	switch {

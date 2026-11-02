@@ -5,62 +5,6 @@ import (
 	"testing"
 )
 
-func TestGetWeatherEmoji(t *testing.T) {
-	tests := []struct {
-		id       int
-		expected string
-	}{
-		{200, "⚡"},  // storm
-		{300, "🌦"},  // drizzle
-		{500, "☔"},  // rain
-		{600, "⛄"},  // snow
-		{700, "🌫"},  // fog
-		{800, "🔆"},  // clear
-		{801, "🌥️"}, // cloudy
-		{900, "🌡"},  // default
-	}
-
-	for _, test := range tests {
-		result := GetWeatherEmoji(test.id, nil)
-		if result != test.expected {
-			t.Errorf("GetWeatherEmoji(%d) = %s, expected %s", test.id, result, test.expected)
-		}
-	}
-
-	dayCurrent := &CurrentWeather{
-		Dt:      1615900000, // between sunrise/sunset
-		Sunrise: 1615890000,
-		Sunset:  1615940000,
-	}
-
-	dayResult := GetWeatherEmoji(800, dayCurrent)
-	if dayResult != "🔆" {
-		t.Errorf("GetWeatherEmoji(800, dayCurrent) = %s, expected 🔆", dayResult)
-	}
-
-	eveningCurrent := &CurrentWeather{
-		Dt:      1615950000, // post-sunset
-		Sunrise: 1615890000,
-		Sunset:  1615940000,
-	}
-
-	eveningResult := GetWeatherEmoji(800, eveningCurrent)
-	if eveningResult != "🌙" {
-		t.Errorf("GetWeatherEmoji(800, eveningCurrent) = %s, expected 🌙", eveningResult)
-	}
-
-	morningCurrent := &CurrentWeather{
-		Dt:      1615880000, // Before sunrise
-		Sunrise: 1615890000,
-		Sunset:  1615940000,
-	}
-
-	morningResult := GetWeatherEmoji(800, morningCurrent)
-	if morningResult != "🌙" {
-		t.Errorf("GetWeatherEmoji(800, morningCurrent) = %s, expected 🌙", morningResult)
-	}
-}
-
 func TestGetWindDirection(t *testing.T) {
 	tests := []struct {
 		degrees  int
@@ -117,29 +61,6 @@ func TestLocalTime(t *testing.T) {
 
 	if result != "2024-01-01 09:00" {
 		t.Errorf("LocalTime() = %s, expected 2024-01-01 09:00", result)
-	}
-}
-
-func TestVisibilityToString(t *testing.T) {
-	tests := []struct {
-		meters   int
-		contains string
-	}{
-		{12000, "Excellent"},
-		{10000, "Excellent"},
-		{7500, "Good"},
-		{5000, "Good"},
-		{3000, "Moderate"},
-		{2000, "Moderate"},
-		{1000, "Poor"},
-		{500, "Poor"},
-	}
-
-	for _, test := range tests {
-		result := VisibilityToString(test.meters)
-		if result == "" || !contains(result, test.contains) {
-			t.Errorf("VisibilityToString(%d) = %s, expected to contain %s", test.meters, result, test.contains)
-		}
 	}
 }
 

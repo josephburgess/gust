@@ -238,12 +238,11 @@ func (m Model) next12(width int) string {
 	return widgets.Panel("next 12 hours", lipgloss.JoinHorizontal(lipgloss.Top, cols...), width, false)
 }
 
-// tipLine is the weather tip without its emoji, or "" when tips are off.
+// tipLine is the weather tip, or "" when tips are off.
 func (m Model) tipLine() string {
 	if !m.cfg.ShowTips {
 		return ""
 	}
 	tip := models.GetWeatherTip(m.weather, m.units)
-	tip = strings.TrimRightFunc(tip, func(r rune) bool { return r > unicode.MaxASCII || unicode.IsSpace(r) })
 	return fg(styles.Iris).Italic(true).Render("› " + strings.ToLower(tip))
 }

@@ -138,31 +138,6 @@ func (w *OneCallResponse) LocalTime(ts int64) time.Time {
 	return time.Unix(ts, 0).In(time.FixedZone(w.Timezone, w.TimezoneOffset))
 }
 
-func GetWeatherEmoji(id int, current *CurrentWeather) string {
-	if id == 800 && current != nil && (current.Dt > current.Sunset || current.Dt < current.Sunrise) {
-		return "🌙" // clear night
-	}
-
-	switch {
-	case id >= 200 && id <= 232:
-		return "⚡" // storm
-	case id >= 300 && id <= 321:
-		return "🌦" // drizzle
-	case id >= 500 && id <= 531:
-		return "☔" // rain
-	case id >= 600 && id <= 622:
-		return "⛄" // snow
-	case id >= 700 && id <= 781:
-		return "🌫" // fog
-	case id == 800:
-		return "🔆" // clear (daytime)
-	case id >= 801 && id <= 804:
-		return "🌥️" // cloudy
-	default:
-		return "🌡" // the rest
-	}
-}
-
 func GetWindDirection(degrees int) string {
 	normalizedDegrees := ((degrees % 360) + 360) % 360
 	directions := []string{"N", "NE", "E", "SE", "S", "SW", "W", "NW"}
@@ -178,28 +153,16 @@ func GetWindArrow(degrees int) string {
 	return arrows[index]
 }
 
-func VisibilityToString(meters int) string {
-	if meters >= 10000 {
-		return "Excellent (10+ km)"
-	} else if meters >= 5000 {
-		return fmt.Sprintf("Good (%.1f km)", float64(meters)/1000)
-	} else if meters >= 2000 {
-		return fmt.Sprintf("Moderate (%.1f km)", float64(meters)/1000)
-	} else {
-		return fmt.Sprintf("Poor (%.1f km)", float64(meters)/1000)
-	}
-}
-
 func GetWeatherTip(weather *OneCallResponse, units string) string {
 	current := weather.Current
 	hourly := weather.Hourly
 
 	if current.Snow != nil && current.Snow.OneHour > 0 {
-		return "It might be snowing right now! Stay warm and take care on slippery surfaces! ⛄"
+		return "It might be snowing right now! Stay warm and take care on slippery surfaces!"
 	}
 
 	if current.Rain != nil && current.Rain.OneHour > 0 {
-		return "It might be raining right now - don't go out without an umbrella! ☔"
+		return "It might be raining right now - don't go out without an umbrella!"
 	}
 
 	for i, hour := range hourly {
@@ -207,11 +170,11 @@ func GetWeatherTip(weather *OneCallResponse, units string) string {
 			precipTime := weather.LocalTime(hour.Dt).Format("15:04")
 
 			if hour.Snow != nil && hour.Snow.OneHour > 0.1 {
-				return fmt.Sprintf("Snow expected around %s - dress warmly and wear appropriate footwear! ❄️", precipTime)
+				return fmt.Sprintf("Snow expected around %s - dress warmly and wear appropriate footwear!", precipTime)
 			}
 
 			if (hour.Rain != nil && hour.Rain.OneHour > 0.5) || hour.Pop > 0.4 {
-				return fmt.Sprintf("Rain expected around %s - don't forget your umbrella! ☔", precipTime)
+				return fmt.Sprintf("Rain expected around %s - don't forget your umbrella!", precipTime)
 			}
 		}
 	}
@@ -234,15 +197,15 @@ func GetWeatherTip(weather *OneCallResponse, units string) string {
 	}
 
 	if current.Temp < coldThreshold {
-		return "It's quite cold - wear a heavy coat and maybe a scarf! 🧣"
+		return "It's quite cold - wear a heavy coat and maybe a scarf!"
 	} else if current.Temp < coolThreshold {
-		return "It's cool today - a jacket would be a good idea. 🧥"
+		return "It's cool today - a jacket would be a good idea."
 	} else if current.Temp > warmThreshold {
-		return "It's hot today - stay hydrated and wear sunscreen! 🧴"
+		return "It's hot today - stay hydrated and wear sunscreen!"
 	}
 
 	if current.UVI > 6 {
-		return "UV index is high - wear sunscreen and maybe a hat! 🧢"
+		return "UV index is high - wear sunscreen and maybe a hat!"
 	}
 
 	var windThreshold float64
@@ -257,8 +220,8 @@ func GetWeatherTip(weather *OneCallResponse, units string) string {
 	}
 
 	if current.WindSpeed > windThreshold {
-		return "It's quite windy today - secure any loose items outdoors! 💨"
+		return "It's quite windy today - secure any loose items outdoors!"
 	}
 
-	return "Conditions look fine, enjoy your day! 🌤️"
+	return "Conditions look fine, enjoy your day!"
 }
