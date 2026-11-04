@@ -53,12 +53,37 @@ The first time you run gust a first-time configuration wizard will get you set u
 ### Basic Commands
 
 ```bash
-# Get weather for your default city
+# Open the dashboard for your default city
 gust
 
-# Get weather for a specific city
+# Open the dashboard for a specific city
 gust london
+
+# Open on a tab
+gust -r london     # hourly
+
+# Print and exit
+gust -c            # two-line summary
+gust -p -y         # print the 5-day tab
+gust | less        # piped output always prints
 ```
+
+### The dashboard
+
+On a terminal, gust opens a dashboard with four tabs: Now, Hourly, 5-day and Alerts.
+
+| Key          | Action                           |
+| ------------ | -------------------------------- |
+| `1-4`, `tab` | Switch tabs                      |
+| `j/k`, `↑↓`  | Move the cursor (Hourly, 5-day)  |
+| `c`          | Change the city for this session |
+| `u`          | Cycle units for this session     |
+| `r`          | Refresh                          |
+| `s`          | Settings (saved to your config)  |
+| `?`          | Help                             |
+| `q`          | Quit                             |
+
+When stdout is not a terminal (a pipe or a file), gust prints the tab once and exits.
 
 <p align="center">
   <img src="https://github.com/user-attachments/assets/76695b8d-5e37-45a3-89cd-2d5b3401c323" width="600">
@@ -73,7 +98,6 @@ _These flags modify user config / settings and don't display weather by themselv
 | `-h`  | `--help`           | Show help                                                  |
 | `-S`  | `--setup`          | Run the setup wizard                                       |
 | `-A`  | `--api=STRING`     | Set custom API server URL (mostly for development)         |
-| `-C`  | `--city=STRING`    | Specify city name                                          |
 | `-D`  | `--default=STRING` | Set a new default city                                     |
 | `-U`  | `--units=STRING`   | Set default temperature units (metric, imperial, standard) |
 | `-L`  | `--login`          | Authenticate with GitHub                                   |
@@ -81,16 +105,22 @@ _These flags modify user config / settings and don't display weather by themselv
 
 ## Display Flags
 
-_These flags control how weather information is displayed_
+_A tab flag opens the dashboard on that tab, or picks the tab to print_
 
-| Short | Long         | Description                                   |
-| ----- | ------------ | --------------------------------------------- |
-| `-a`  | `--alerts`   | Show weather alerts                           |
-| `-c`  | `--compact`  | Show today's compact weather view             |
-| `-d`  | `--detailed` | Show today's detailed weather view            |
-| `-f`  | `--full`     | Show today, 5-day and weather alert forecasts |
-| `-r`  | `--hourly`   | Show 24-hour (hourly) forecast                |
-| `-y`  | `--daily`    | Show 5-day forecast                           |
+| Short | Long        | Description                                   |
+| ----- | ----------- | --------------------------------------------- |
+| `-n`  | `--now`     | Open on the Now tab                           |
+| `-r`  | `--hourly`  | Open on the Hourly tab                        |
+| `-y`  | `--daily`   | Open on the 5-day tab                         |
+| `-a`  | `--alerts`  | Open on the Alerts tab                        |
+| `-c`  | `--compact` | Print a two-line summary and exit             |
+| `-p`  | `--print`   | Print the tab and exit, without the dashboard |
+
+### Upgrading from 0.x
+
+- `-d/--detailed` is now `-n/--now`.
+- `-f/--full` is gone. The dashboard tabs replace it, and a saved `full` view opens on Now.
+- `-C/--city` is gone. Pass the city as an argument: `gust london`.
 
 ## Authentication
 

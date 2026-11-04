@@ -4,31 +4,21 @@ import (
 	"fmt"
 	"time"
 
+	"charm.land/lipgloss/v2"
+
 	"github.com/josephburgess/gust/internal/ui/styles"
 )
 
 func PrintError(message string) {
-	fmt.Println(styles.ErrorStyle("❌ " + message))
+	lipgloss.Println(lipgloss.NewStyle().Foreground(styles.Love).Bold(true).Render(message))
 }
 
 func PrintSuccess(message string) {
-	fmt.Println(styles.SuccessStyle("✅ " + message))
+	lipgloss.Println(lipgloss.NewStyle().Foreground(styles.Foam).Render("✓ " + message))
 }
 
 func PrintInfo(message string) {
-	fmt.Println(styles.InfoStyle(message))
-}
-
-func PrintWarning(message string) {
-	fmt.Println(styles.WarningStyle("⚠️ " + message))
-}
-
-func PrintHeader(title string) {
-	fmt.Printf("\n%s\n%s\n", styles.HeaderStyle(title), styles.Divider(len(title)*2))
-}
-
-func PrintBoxedMessage(message string) {
-	fmt.Println(styles.BoxStyle.Render(message))
+	lipgloss.Println(lipgloss.NewStyle().Foreground(styles.Subtle).Render(message))
 }
 
 func PrintRateLimitWarning(remaining, limit int, resetTime time.Time) {
@@ -37,13 +27,13 @@ func PrintRateLimitWarning(remaining, limit int, resetTime time.Time) {
 	resetFormatted := resetTime.Format("15:04")
 
 	fmt.Println()
-	fmt.Println(styles.BoxStyle.Render(fmt.Sprintf(
-		"⚠️ API Rate Limit Warning\n\n"+
+	lipgloss.Println(styles.BoxStyle.Render(fmt.Sprintf(
+		"API rate limit warning\n\n"+
 			"You have %s requests remaining out of %d.\n"+
 			"Your rate limit will reset at %s (%d minutes from now).",
-		styles.HighlightStyleF(fmt.Sprintf("%d", remaining)),
+		lipgloss.NewStyle().Bold(true).Render(fmt.Sprintf("%d", remaining)),
 		limit,
-		styles.TimeStyle(resetFormatted),
+		lipgloss.NewStyle().Foreground(styles.Gold).Render(resetFormatted),
 		minutesUntilReset,
 	)))
 	fmt.Println()
@@ -55,14 +45,14 @@ func PrintRateLimitError(limit int, resetTime time.Time) {
 	resetFormatted := resetTime.Format("15:04")
 
 	fmt.Println()
-	fmt.Println(styles.BoxStyle.BorderForeground(styles.Love).Render(fmt.Sprintf(
-		"❌ API Rate Limit Reached\n\n"+
+	lipgloss.Println(styles.BoxStyle.BorderForeground(styles.Love).Render(fmt.Sprintf(
+		"API rate limit reached\n\n"+
 			"Sorry - you have used all %d available requests.\n"+
 			"You must really like checking the weather!!\n"+
 			"Your rate limit will reset at %s (%d minutes from now).\n\n"+
-			"💡 If you think the limits are too low please get in touch :)",
+			"If you think the limits are too low please get in touch :)",
 		limit,
-		styles.TimeStyle(resetFormatted),
+		lipgloss.NewStyle().Foreground(styles.Gold).Render(resetFormatted),
 		minutesUntilReset,
 	)))
 	fmt.Println()

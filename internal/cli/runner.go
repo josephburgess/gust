@@ -39,7 +39,7 @@ func Run(ctx *kong.Context, cli *CLI) error {
 		return handleMissingAuth()
 	}
 
-	city := determineCityName(cli.City, cli.Args, cfg.DefaultCity)
+	city := determineCityName(cli.Args, cfg.DefaultCity)
 	if city == "" {
 		return handleMissingCity()
 	}

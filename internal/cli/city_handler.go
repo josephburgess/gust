@@ -5,10 +5,7 @@ import (
 	"strings"
 )
 
-func determineCityName(cityFlag string, args []string, defaultCity string) string {
-	if cityFlag != "" {
-		return cityFlag
-	}
+func determineCityName(args []string, defaultCity string) string {
 	if len(args) > 0 {
 		return strings.Join(args, " ") // might be multi word city
 	}

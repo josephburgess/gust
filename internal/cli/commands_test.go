@@ -16,19 +16,17 @@ func TestNewApp(t *testing.T) {
 		name  string
 		value any
 	}{
-		{"City", cli.City},
 		{"Default", cli.Default},
 		{"ApiUrl", cli.ApiUrl},
 		{"Login", cli.Login},
 		{"Setup", cli.Setup},
 		{"Compact", cli.Compact},
-		{"Detailed", cli.Detailed},
-		{"Full", cli.Full},
+		{"Now", cli.Now},
 		{"Daily", cli.Daily},
 		{"Hourly", cli.Hourly},
 		{"Alerts", cli.Alerts},
 		{"Units", cli.Units},
-		{"Pretty", cli.Pretty},
+		{"Print", cli.Print},
 	}
 
 	for _, field := range fields {

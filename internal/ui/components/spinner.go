@@ -1,11 +1,11 @@
 package components
 
 import (
-	"time"
+	"image/color"
 
-	"github.com/charmbracelet/bubbles/spinner"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/spinner"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/josephburgess/gust/internal/ui/styles"
 )
 
@@ -24,7 +24,7 @@ func NewSpinner() SpinnerModel {
 }
 
 // custom spinner type/colour
-func NewCustomSpinner(spinnerType spinner.Spinner, color lipgloss.Color) SpinnerModel {
+func NewCustomSpinner(spinnerType spinner.Spinner, color color.Color) SpinnerModel {
 	s := spinner.New()
 	s.Spinner = spinnerType
 	s.Style = lipgloss.NewStyle().Foreground(color)
@@ -49,10 +49,4 @@ func (s SpinnerModel) Update(msg tea.Msg) (SpinnerModel, tea.Cmd) {
 // render
 func (s SpinnerModel) View() string {
 	return s.Spinner.View()
-}
-
-// custom weather spinner
-var WeatherEmojis = spinner.Spinner{
-	Frames: []string{"☀️ ", "⛅️ ", "☁️ ", "🌧️ ", "⛈️ ", "❄️ ", "🌪️ ", "🌈 "},
-	FPS:    time.Second / 5,
 }
